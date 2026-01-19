@@ -1,0 +1,30 @@
+version: '3.8'
+
+services:
+  # O Cérebro: Banco de Dados Analítico
+  clickhouse:
+    image: clickhouse/clickhouse-server:latest
+    container_name: cnpj_db
+    ports:
+      - "8123:8123" # Porta HTTP para conectar ferramentas de BI
+      - "9000:9000" # Porta nativa TCP
+    ulimits:
+      nofile:
+        soft: 262144
+        hard: 262144
+    volumes:
+      - clickhouse_data:/var/lib/clickhouse
+
+  # O Braço: Worker de ETL Python
+  etl_worker:
+    build: .
+    container_name: cnpj_etl
+    volumes:
+      - ./src:/app/src
+      - ./dados_temp:/app/dados_temp # Pasta para salvar os zips temporariamente
+    depends_on:
+      - clickhouse
+    command: sh -c "python src/downloader.py && python src/etl.py"
+
+volumes:
+  clickhouse_data:
