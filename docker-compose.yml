@@ -5,6 +5,9 @@ services:
   clickhouse:
     image: clickhouse/clickhouse-server:latest
     container_name: cnpj_db
+    environment:
+      - CLICKHOUSE_USER=default
+      - CLICKHOUSE_PASSWORD=senha123
     ports:
       - "8123:8123" # Porta HTTP para conectar ferramentas de BI
       - "9000:9000" # Porta nativa TCP
@@ -15,16 +18,41 @@ services:
     volumes:
       - clickhouse_data:/var/lib/clickhouse
 
-  # O Braço: Worker de ETL Python
-  etl_worker:
-    build: .
-    container_name: cnpj_etl
-    volumes:
-      - ./src:/app/src
-      - ./dados_temp:/app/dados_temp # Pasta para salvar os zips temporariamente
-    depends_on:
-      - clickhouse
-    command: sh -c "python src/downloader.py && python src/etl.py"
+  # # O Braço: Worker de ETL Python
+  # etl_worker:
+  #   build: .
+  #   container_name: cnpj_etl
+  #   environment:
+  #     - CLICKHOUSE_HOST=clickhouse
+  #     - CLICKHOUSE_USER=default
+  #     - CLICKHOUSE_PASSWORD=senha123
+  #     - DATA_DIR=/app/dados_temp
+  #   volumes:
+  #     - ./etl:/app/etl
+  #     - ./downloader:/app/downloader
+  #     - ./dados_temp:/app/dados_temp # Pasta para salvar os zips temporariamente
+  #   depends_on:
+  #     - clickhouse
+  #   command: sh -c "python etl/etl.py"
+
+  # # O Rosto: Dashboard Next.js
+  # dashboard:
+  #   build:
+  #     context: ./dashboard
+  #     dockerfile: Dockerfile
+  #   container_name: cnpj_dashboard
+  #   ports:
+  #     - "3000:3000"
+  #   environment:
+  #     - CLICKHOUSE_HOST=http://clickhouse:8123
+  #     - CLICKHOUSE_USER=default
+  #     - CLICKHOUSE_PASSWORD=senha123
+  #     - CLICKHOUSE_DB=cnpj_analytics
+  #   depends_on:
+  #     - clickhouse
+  #   volumes:
+  #     - ./dashboard:/app
+  #     - /app/node_modules
 
 volumes:
   clickhouse_data:
