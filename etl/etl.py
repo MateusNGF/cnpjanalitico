@@ -4,13 +4,21 @@ import os
 import time
 import glob
 import sys
+from datetime import datetime
+from rich.console import Console
+from rich.table import Table
+from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TaskProgressColumn, TimeElapsedColumn
+from rich.live import Live
+from rich.panel import Panel
+from rich.layout import Layout
+
+console = Console()
+
 
 # ---------------------------------------------------------
 # CONFIGURAÇÃO
 # ---------------------------------------------------------
-print("\n" + "="*40)
-print("CNPJ ANALYTICS - ETL V3 (OPTIMIZED)")
-print("="*40 + "\n")
+# Configuração alinhada EXATAMENTE com setup_optimized.sql
 
 DB_NAME = os.getenv('DB_NAME', 'cnpj_analytics')
 DATA_DIR = os.getenv('DATA_DIR', r'W:\app\dados_temp')
@@ -128,11 +136,21 @@ def init_db(client):
 # ---------------------------------------------------------
 # PIPELINE DE DADOS (POLARS)
 # ---------------------------------------------------------
-def process_file(filepath, file_type, client):
+def process_file(filepath, file_type, client, progress, overall_task, file_summary):
     config = FILES_CONFIG[file_type]
     table_name = f'{DB_NAME}.{config["table"]}'
+    filename = os.path.basename(filepath)
     
-    print(f"-> Lendo: {os.path.basename(filepath)}")
+    start_time = datetime.now()
+    file_record = {
+        "file": filename,
+        "type": file_type,
+        "start": start_time.strftime("%H:%M:%S"),
+        "end": "-",
+        "rows": 0,
+        "status": "[yellow]Iniciando...[/yellow]"
+    }
+    file_summary.append(file_record)
 
     # Lazy Frame: Não carrega nada na memória ainda
     q = pl.scan_csv(
@@ -147,7 +165,6 @@ def process_file(filepath, file_type, client):
     )
 
     # Transformações específicas por tipo de arquivo
-    # IMPORTANTE: Mapear column_X corretas do Layout da Receita
     if file_type == 'ESTABELE':
         q = q.select([
             pl.col("column_1").alias("cnpj_basico"),
@@ -156,8 +173,8 @@ def process_file(filepath, file_type, client):
             pl.col("column_4").alias("identificador_matriz_filial"),
             pl.col("column_5").str.strip_chars().alias("nome_fantasia"),
             pl.col("column_6").alias("situacao_cadastral"),
-            pl.col("column_7").alias("data_situacao_cadastral"), # Data
-            pl.col("column_11").alias("data_inicio_atividade"),  # Data
+            pl.col("column_7").alias("data_situacao_cadastral"),
+            pl.col("column_11").alias("data_inicio_atividade"),
             pl.col("column_12").alias("cnae_fiscal_principal"),
             pl.col("column_14").str.strip_chars().alias("tipo_logradouro"),
             pl.col("column_15").str.strip_chars().alias("logradouro"),
@@ -183,7 +200,6 @@ def process_file(filepath, file_type, client):
             pl.col("column_5").alias("capital_social"),
             pl.col("column_6").alias("porte_empresa")
         ]).with_columns([
-            # Converte virgula para ponto e depois para Float
             pl.col("capital_social").str.replace(",", ".").cast(pl.Float64, strict=False)
         ])
 
@@ -225,22 +241,23 @@ def process_file(filepath, file_type, client):
 
     # Execução do Streaming e Inserção
     try:
-        # Batch size moderado para evitar timeouts em grandes colunas (ex: razão social)
         BATCH_SIZE = 100000 
-        
-        # O Polars gerencia o streaming, lendo o CSV em pedaços e processando
-        processed_batches = q.collect(engine="streaming")
-        
+        processed_batches = q.collect(streaming=True)
         total_rows = processed_batches.height
+        file_record["rows"] = total_rows
+        
         if total_rows == 0:
+            file_record["status"] = "[white]Vazio[/white]"
+            file_record["end"] = datetime.now().strftime("%H:%M:%S")
             return
 
-        print(f"   Total do arquivo: {total_rows} registros.")
+        file_task = progress.add_task(f"[cyan]{filename}", total=total_rows)
+        file_record["status"] = "[blue]Processando...[/blue]"
         
         for i in range(0, total_rows, BATCH_SIZE):
             batch = processed_batches.slice(i, BATCH_SIZE)
             
-            # Retry logic para cada lote (batch)
+            # Retry logic
             max_retries = 3
             for attempt in range(max_retries):
                 try:
@@ -249,22 +266,23 @@ def process_file(filepath, file_type, client):
                         batch.rows(),
                         column_names=batch.columns
                     )
-                    break # Sucesso
+                    break
                 except Exception as e:
                     if attempt < max_retries - 1:
-                        print(f"      [RETRY {attempt+1}/{max_retries}] Bug no lote {i}: {e}")
                         time.sleep(5)
                     else:
-                        raise e # Falha definitiva
+                        raise e
             
-            # Log de progresso a cada 500k ou fim do arquivo
-            if (i + BATCH_SIZE) % 500000 == 0 or (i + BATCH_SIZE) >= total_rows:
-                print(f"      -> Progresso: {min(i + BATCH_SIZE, total_rows)} / {total_rows}...")
+            progress.update(file_task, advance=batch.height)
             
-        print(f"   Sucesso.")
+        file_record["status"] = "[green]Sucesso[/green]"
+        file_record["end"] = datetime.now().strftime("%H:%M:%S")
+        progress.remove_task(file_task)
+        progress.update(overall_task, advance=1)
         
     except Exception as e:
-        print(f"ERRO CRÍTICO no arquivo {filepath}: {e}")
+        file_record["status"] = f"[red]Erro: {str(e)[:30]}...[/red]"
+        file_record["end"] = datetime.now().strftime("%H:%M:%S")
 
 # ---------------------------------------------------------
 # MAIN
@@ -272,36 +290,100 @@ def process_file(filepath, file_type, client):
 def main():
     abs_data_dir = os.path.abspath(DATA_DIR)
     if not os.path.exists(abs_data_dir):
-        print(f"Diretório de dados não encontrado: {abs_data_dir}")
+        console.print(f"[red]Diretório de dados não encontrado: {abs_data_dir}[/red]")
         return
 
     client = get_client()
     init_db(client)
     
-    # Ordem de prioridade para carga
-    # Dimensões primeiro -> Fatos depois
     priority_order = ['CNAE', 'MUNIC', 'MOTI', 'NATJU', 'SIMPLES', 'EMPRE', 'SOCIO', 'ESTABELE']
     
-    files_found = 0
-    
+    all_valid_files = []
     for file_type in priority_order:
         pattern = os.path.join(abs_data_dir, f"*{file_type}*")
         files = glob.glob(pattern)
+        valid = sorted([f for f in files if not f.endswith('.zip') and os.path.isfile(f)])
+        for f in valid:
+            all_valid_files.append((f, file_type))
+    
+    if not all_valid_files:
+        console.print(Panel(
+            f"[bold yellow]Nenhum arquivo CSV encontrado![/bold yellow]\n\n"
+            f"Diretório: [cyan]{abs_data_dir}[/cyan]\n"
+            f"Padrões: [magenta]{priority_order}[/magenta]\n\n"
+            f"Verifique se os arquivos foram descompactados corretamente.",
+            title="Aviso",
+            border_style="yellow"
+        ))
+        return
+
+    console.log(f"Encontrados {len(all_valid_files)} arquivos para processar.")
+    file_summary = []
+    
+    def generate_table():
+        table = Table(title="CNPJ Analytics - ETL Status", expand=True)
+        table.add_column("Arquivo", style="cyan", no_wrap=True)
+        table.add_column("Tipo", style="magenta")
+        table.add_column("Início", style="green")
+        table.add_column("Fim", style="green")
+        table.add_column("Registros", justify="right", style="bold")
+        table.add_column("Status", justify="center")
         
-        # Filtra zips e ordena
-        valid_files = sorted([f for f in files if not f.endswith('.zip') and os.path.isfile(f)])
-        
-        if valid_files:
-            print(f"\nCategoria: {file_type} ({len(valid_files)} arquivos)")
-            for f in valid_files:
-                process_file(f, file_type, client)
-                files_found += 1
-        
-    if files_found == 0:
-        print("\nNenhum arquivo CSV compatível encontrado.")
-        print("Certifique-se que os arquivos descompactados contêm os nomes padrões (ex: .ESTABELE, .EMPRE, etc).")
-    else:
-        print(f"\nConcluído com sucesso. {files_found} arquivos processados.")
+        display_list = file_summary[-15:]
+        for f in display_list:
+            table.add_row(
+                f["file"], 
+                f["type"], 
+                f["start"], 
+                f["end"], 
+                f"{f['rows']:,}", 
+                f["status"]
+            )
+        return table
+
+    progress = Progress(
+        SpinnerColumn(),
+        TextColumn("[progress.description]{task.description}"),
+        BarColumn(),
+        TaskProgressColumn(),
+        TimeElapsedColumn(),
+        console=console
+    )
+
+    layout = Layout()
+    layout.split_column(
+        Layout(name="header", size=3),
+        Layout(name="body"),
+        Layout(name="footer", size=10)
+    )
+    
+    layout["header"].update(Panel("[bold white]CNPJ ANALYTICS - ETL PIPELINE[/bold white]", style="blue"))
+
+    try:
+        with Live(layout, console=console, refresh_per_second=4) as live:
+            overall_task = progress.add_task("[bold green]Progresso Geral", total=len(all_valid_files))
+            layout["footer"].update(Panel(progress, title="Processamento Atual"))
+
+            for f_path, f_type in all_valid_files:
+                layout["body"].update(generate_table())
+                process_file(f_path, f_type, client, progress, overall_task, file_summary)
+                layout["body"].update(generate_table())
+
+        console.print(f"\n[bold green]Concluído com sucesso. {len(all_valid_files)} arquivos processados.[/bold green]")
+    except Exception as e:
+        console.print(f"\n[bold red]ERRO FATAL NO LOOP PRINCIPAL: {e}[/bold red]")
+        import traceback
+        console.print(traceback.format_exc())
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except KeyboardInterrupt:
+        console.print("\n[yellow]Interrompido pelo usuário.[/yellow]")
+    except Exception as e:
+        console.print(f"\n[bold red]ERRO CRÍTICO: {e}[/bold red]")
+        import traceback
+        console.print(traceback.format_exc())
+    finally:
+        console.print("\n" + "-"*40)
+        input("Pressione Enter para sair...")

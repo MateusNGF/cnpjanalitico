@@ -139,3 +139,67 @@ SELECT
 FROM cnpj_analytics.estabelecimentos
 WHERE data_inicio_atividade IS NOT NULL
 GROUP BY ano_mes;
+
+-- --------------------------------------------------------
+-- 5. Views de Inteligência de Negócio e Georeferenciamento
+-- --------------------------------------------------------
+
+-- MV: Ranking de Bairros (Onde estão as empresas por setor)
+CREATE MATERIALIZED VIEW IF NOT EXISTS cnpj_analytics.mv_ranking_bairros
+ENGINE = SummingMergeTree()
+ORDER BY (uf, municipio, bairro, cnae_fiscal_principal) AS
+SELECT 
+    uf,
+    municipio,
+    bairro,
+    cnae_fiscal_principal,
+    count() as total
+FROM cnpj_analytics.estabelecimentos
+WHERE bairro != ''
+GROUP BY uf, municipio, bairro, cnae_fiscal_principal;
+
+-- MV: Densidade por Logradouro (Polos comerciais)
+CREATE MATERIALIZED VIEW IF NOT EXISTS cnpj_analytics.mv_densidade_logradouro
+ENGINE = SummingMergeTree()
+ORDER BY (uf, municipio, logradouro) AS
+SELECT 
+    uf,
+    municipio,
+    logradouro,
+    count() as total
+FROM cnpj_analytics.estabelecimentos
+WHERE logradouro != ''
+GROUP BY uf, municipio, logradouro;
+
+-- VIEW: Lead Completo (Visão unificada para o Front-end)
+-- Esta view facilita a busca sem precisar fazer JOINs manuais no código do app
+CREATE VIEW IF NOT EXISTS cnpj_analytics.v_lead_completo AS
+SELECT 
+    e.cnpj_basico,
+    e.cnpj_ordem,
+    e.cnpj_dv,
+    emp.razao_social,
+    e.nome_fantasia,
+    e.situacao_cadastral,
+    e.data_situacao_cadastral,
+    e.cnae_fiscal_principal,
+    c.descricao as cnae_descricao,
+    e.tipo_logradouro,
+    e.logradouro,
+    e.numero,
+    e.complemento,
+    e.bairro,
+    e.cep,
+    e.uf,
+    e.municipio,
+    m.descricao as municipio_nome,
+    e.ddd1,
+    e.telefone1,
+    e.correio_eletronico,
+    emp.capital_social,
+    emp.porte_empresa,
+    emp.natureza_juridica
+FROM cnpj_analytics.estabelecimentos e
+LEFT JOIN cnpj_analytics.empresas emp ON e.cnpj_basico = emp.cnpj_basico
+LEFT JOIN cnpj_analytics.dim_cnae c ON e.cnae_fiscal_principal = c.codigo
+LEFT JOIN cnpj_analytics.dim_municipios m ON e.municipio = m.codigo;
