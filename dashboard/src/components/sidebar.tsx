@@ -4,6 +4,7 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { LayoutDashboard, Users, TrendingUp, ShieldCheck, HelpCircle } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { ThemeToggle } from "@/components/theme-toggle"
 
 export default function Sidebar() {
     const pathname = usePathname()
@@ -17,7 +18,7 @@ export default function Sidebar() {
 
     return (
         <div className="flex h-full w-64 flex-col border-r bg-card/30 backdrop-blur-xl transition-all">
-            <div className="flex h-16 items-center border-b px-6">
+            <div className="flex h-16 items-center justify-between border-b px-6">
                 <Link href="/" className="flex items-center gap-3 font-bold hover:opacity-80 transition-opacity">
                     <div className="bg-primary rounded-lg p-1.5 shadow-lg shadow-primary/20">
                         <TrendingUp className="h-5 w-5 text-primary-foreground" />
@@ -26,6 +27,7 @@ export default function Sidebar() {
                         CNPJ Analítico
                     </span>
                 </Link>
+                <ThemeToggle />
             </div>
             <div className="flex-1 overflow-auto py-6">
                 <nav className="grid gap-1.5 px-4 text-sm font-medium">

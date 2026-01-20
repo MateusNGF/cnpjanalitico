@@ -79,11 +79,20 @@ export default function Home() {
     );
   }
 
-  const sectors = (data.topSectors || []).map((s, i) => ({
-    name: s.cnae_fiscal_principal,
-    value: parseInt(s.total) || 0,
-    color: ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#6366f1'][i % 5]
-  }));
+  const sectors = (data.topSectors || []).map((s, i) => {
+    const colors = [
+      'var(--chart-1)',
+      'var(--chart-2)',
+      'var(--chart-3)',
+      'var(--chart-4)',
+      'var(--chart-5)'
+    ];
+    return {
+      name: s.cnae_fiscal_principal,
+      value: parseInt(s.total) || 0,
+      color: colors[i % colors.length]
+    };
+  });
 
   const chartData = (data.growthHistory || []).map(h => ({
     name: h.mes_label,
@@ -171,8 +180,8 @@ export default function Home() {
               <LineChart data={chartData}>
                 <defs>
                   <linearGradient id="colorNovos" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.8} />
-                    <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
+                    <stop offset="5%" stopColor="var(--primary)" stopOpacity={0.8} />
+                    <stop offset="95%" stopColor="var(--primary)" stopOpacity={0} />
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" opacity={0.5} />
@@ -180,21 +189,21 @@ export default function Home() {
                 <YAxis fontSize={11} tickLine={false} axisLine={false} tickFormatter={(value) => formatNumber(value)} />
                 <Tooltip
                   contentStyle={{
-                    backgroundColor: 'hsl(var(--background))',
-                    border: '1px solid hsl(var(--border))',
+                    backgroundColor: 'var(--background)',
+                    border: '1px solid var(--border)',
                     borderRadius: '8px',
                     fontSize: '12px',
                     boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
                   }}
-                  itemStyle={{ color: 'hsl(var(--primary))', fontWeight: 'bold' }}
+                  itemStyle={{ color: 'var(--primary)', fontWeight: 'bold' }}
                 />
                 <Line
                   type="monotone"
                   dataKey="novos"
-                  stroke="hsl(var(--primary))"
+                  stroke="var(--primary)"
                   strokeWidth={3}
-                  dot={{ r: 4, fill: 'hsl(var(--primary))', strokeWidth: 2, stroke: 'hsl(var(--background))' }}
-                  activeDot={{ r: 6, fill: 'hsl(var(--primary))', strokeWidth: 2, stroke: 'hsl(var(--background))' }}
+                  dot={{ r: 4, fill: 'var(--primary)', strokeWidth: 2, stroke: 'var(--background)' }}
+                  activeDot={{ r: 6, fill: 'var(--primary)', strokeWidth: 2, stroke: 'var(--background)' }}
                 />
               </LineChart>
             </ResponsiveContainer>

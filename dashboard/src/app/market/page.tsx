@@ -72,7 +72,14 @@ export default function MarketPage() {
         );
     }
 
-    const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#6366f1', '#64748b'];
+    const COLORS = [
+        'var(--chart-1)',
+        'var(--chart-2)',
+        'var(--chart-3)',
+        'var(--chart-4)',
+        'var(--chart-5)',
+        'var(--sidebar-accent-foreground)'
+    ];
 
     return (
         <div className="flex flex-col gap-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
@@ -98,15 +105,16 @@ export default function MarketPage() {
                                 <YAxis fontSize={11} tickLine={false} axisLine={false} tickFormatter={(value) => formatNumber(value)} />
                                 <Tooltip
                                     contentStyle={{
-                                        backgroundColor: 'hsl(var(--background))',
-                                        border: '1px solid hsl(var(--border))',
+                                        backgroundColor: 'var(--background)',
+                                        border: '1px solid var(--border)',
                                         borderRadius: '8px',
                                         boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
                                     }}
+                                    itemStyle={{ color: 'var(--foreground)' }}
                                 />
-                                <Bar dataKey="total" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} barSize={30}>
+                                <Bar dataKey="total" fill="var(--primary)" radius={[4, 4, 0, 0]} barSize={30}>
                                     {(data.density || []).map((entry, index) => (
-                                        <Cell key={`cell-${index}`} fill={index === 0 ? 'hsl(var(--primary))' : 'hsl(var(--primary)/0.6)'} />
+                                        <Cell key={`cell-${index}`} fill={index === 0 ? 'var(--primary)' : 'var(--muted-foreground)'} />
                                     ))}
                                 </Bar>
                             </BarChart>
@@ -171,12 +179,13 @@ export default function MarketPage() {
                                 <YAxis dataKey="name" type="category" fontSize={10} tickLine={false} axisLine={false} width={100} />
                                 <Tooltip
                                     contentStyle={{
-                                        backgroundColor: 'hsl(var(--background))',
-                                        border: '1px solid hsl(var(--border))',
+                                        backgroundColor: 'var(--background)',
+                                        border: '1px solid var(--border)',
                                         borderRadius: '8px'
                                     }}
+                                    itemStyle={{ color: 'var(--foreground)' }}
                                 />
-                                <Bar dataKey="total" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} />
+                                <Bar dataKey="total" fill="var(--primary)" radius={[0, 4, 4, 0]} />
                             </BarChart>
                         </ResponsiveContainer>
                     </CardContent>
@@ -209,10 +218,11 @@ export default function MarketPage() {
                                 </Pie>
                                 <Tooltip
                                     contentStyle={{
-                                        backgroundColor: 'hsl(var(--background))',
-                                        border: '1px solid hsl(var(--border))',
+                                        backgroundColor: 'var(--background)',
+                                        border: '1px solid var(--border)',
                                         borderRadius: '8px'
                                     }}
+                                    itemStyle={{ color: 'var(--foreground)' }}
                                 />
                             </RechartsPieChart>
                         </ResponsiveContainer>
