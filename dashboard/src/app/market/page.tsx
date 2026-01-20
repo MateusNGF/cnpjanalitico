@@ -1,74 +1,221 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { TrendingUp, Map, BarChart3, PieChart } from "lucide-react"
+import { TrendingUp, Map, BarChart3, PieChart, Loader2, AlertTriangle } from "lucide-react"
+import { formatNumber } from "@/lib/utils";
+import {
+    BarChart,
+    Bar,
+    XAxis,
+    YAxis,
+    CartesianGrid,
+    Tooltip,
+    ResponsiveContainer,
+    PieChart as RechartsPieChart,
+    Pie,
+    Cell
+} from 'recharts';
+
+interface MarketData {
+    density: { uf: string, total: string }[];
+    hotSectors: { cnae_fiscal_principal: string, total: string }[];
+    natureDistribution: { natureza_juridica: string, total: string }[];
+    insights: {
+        blueOcean: { location: string, reason: string };
+        hotSector: { name: string, growth: string };
+        highRisk: { location: string, rate: string };
+    };
+}
 
 export default function MarketPage() {
+    const [data, setData] = useState<MarketData | null>(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(false);
+
+    useEffect(() => {
+        fetch('/api/market')
+            .then(res => {
+                if (!res.ok) throw new Error('Failed to fetch');
+                return res.json();
+            })
+            .then(json => {
+                setData(json);
+                setLoading(false);
+            })
+            .catch(err => {
+                console.error("Failed to fetch market data:", err);
+                setError(true);
+                setLoading(false);
+            });
+    }, []);
+
+    if (loading) {
+        return (
+            <div className="flex h-[400px] flex-col items-center justify-center gap-4">
+                <Loader2 className="h-10 w-10 animate-spin text-primary opacity-50" />
+                <span className="text-sm text-muted-foreground animate-pulse">Cruzando dados demográficos...</span>
+            </div>
+        );
+    }
+
+    if (error || !data) {
+        return (
+            <div className="flex h-[400px] flex-col items-center justify-center gap-4">
+                <BarChart3 className="h-12 w-12 text-destructive opacity-50" />
+                <div className="text-center">
+                    <h3 className="text-lg font-bold text-foreground">Insights Indisponíveis</h3>
+                    <p className="text-sm text-muted-foreground">Não foi possível processar as métricas de mercado.</p>
+                </div>
+                <button onClick={() => window.location.reload()} className="text-xs font-bold text-primary hover:underline">Tentar novamente</button>
+            </div>
+        );
+    }
+
+    const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#6366f1', '#64748b'];
+
     return (
-        <div className="flex flex-col gap-8">
+        <div className="flex flex-col gap-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
             <div>
-                <h1 className="text-3xl font-bold tracking-tight">Inteligência de Mercado</h1>
-                <p className="text-muted-foreground">Análise de setores em crescimento e zonas de saturação.</p>
+                <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">Inteligência de Mercado</h1>
+                <p className="text-muted-foreground">Análise de setores em crescimento e zonas de saturação empresarial.</p>
             </div>
 
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                <Card className="col-span-2">
+                <Card className="col-span-2 border-primary/5 bg-muted/5 backdrop-blur-sm">
                     <CardHeader>
-                        <CardTitle>Mapa de Densidade Empresarial</CardTitle>
-                        <CardDescription>Concentração de empresas por região e setor.</CardDescription>
+                        <CardTitle className="flex items-center gap-2">
+                            <Map className="h-5 w-5 text-primary" />
+                            Densidade Empresarial por UF
+                        </CardTitle>
+                        <CardDescription>Concentração de empresas ativas por região do Brasil.</CardDescription>
                     </CardHeader>
-                    <CardContent className="h-[400px] flex items-center justify-center border-t border-dashed mt-4 text-muted-foreground bg-muted/20 rounded-md">
-                        <Map className="mr-2 h-8 w-8 opacity-20" />
-                        [Mapa Interativo - Heatmap]
+                    <CardContent className="h-[400px] pt-4">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <BarChart data={(data.density || []).slice(0, 15)} margin={{ top: 20, right: 30, left: 0, bottom: 0 }}>
+                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" opacity={0.5} />
+                                <XAxis dataKey="uf" fontSize={11} tickLine={false} axisLine={false} />
+                                <YAxis fontSize={11} tickLine={false} axisLine={false} tickFormatter={(value) => formatNumber(value)} />
+                                <Tooltip
+                                    contentStyle={{
+                                        backgroundColor: 'hsl(var(--background))',
+                                        border: '1px solid hsl(var(--border))',
+                                        borderRadius: '8px',
+                                        boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+                                    }}
+                                />
+                                <Bar dataKey="total" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} barSize={30}>
+                                    {(data.density || []).map((entry, index) => (
+                                        <Cell key={`cell-${index}`} fill={index === 0 ? 'hsl(var(--primary))' : 'hsl(var(--primary)/0.6)'} />
+                                    ))}
+                                </Bar>
+                            </BarChart>
+                        </ResponsiveContainer>
                     </CardContent>
                 </Card>
 
                 <div className="flex flex-col gap-4">
-                    <Card>
+                    <Card className="border-green-500/10 bg-gradient-to-br from-background to-green-500/5">
                         <CardHeader className="pb-2">
-                            <CardTitle className="text-sm font-medium">Oceano Azul</CardTitle>
+                            <CardTitle className="text-sm font-medium flex items-center gap-2">
+                                <span className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
+                                Oceano Azul
+                            </CardTitle>
                         </CardHeader>
                         <CardContent>
-                            <div className="text-2xl font-bold text-green-500">Curitiba/PR</div>
-                            <p className="text-xs text-muted-foreground">Alta renda, baixa densidade de Petshops.</p>
+                            <div className="text-2xl font-bold text-green-500 tracking-tight">{data.insights?.blueOcean?.location || "N/A"}</div>
+                            <p className="text-[11px] text-muted-foreground mt-1 leading-relaxed">{data.insights?.blueOcean?.reason || "--"}</p>
                         </CardContent>
                     </Card>
-                    <Card>
+                    <Card className="border-blue-500/10 bg-gradient-to-br from-background to-blue-500/5">
                         <CardHeader className="pb-2">
-                            <CardTitle className="text-sm font-medium">Setor Aquecido</CardTitle>
+                            <CardTitle className="text-sm font-medium flex items-center gap-2">
+                                <TrendingUp className="h-3.5 w-3.5 text-blue-500" />
+                                Setor Aquecido
+                            </CardTitle>
                         </CardHeader>
                         <CardContent>
-                            <div className="text-2xl font-bold text-blue-500">Energia Solar</div>
-                            <p className="text-xs text-muted-foreground">+45% de aberturas no último trimestre.</p>
+                            <div className="text-2xl font-bold text-blue-500 tracking-tight">{data.insights?.hotSector?.name || "N/A"}</div>
+                            <p className="text-[11px] text-muted-foreground mt-1 leading-relaxed"><span className="text-blue-500 font-bold">{data.insights?.hotSector?.growth || "--"}</span> de aberturas recentes em escala nacional.</p>
                         </CardContent>
                     </Card>
-                    <Card>
+                    <Card className="border-red-500/10 bg-gradient-to-br from-background to-red-500/5">
                         <CardHeader className="pb-2">
-                            <CardTitle className="text-sm font-medium">Bairro de Alto Risco</CardTitle>
+                            <CardTitle className="text-sm font-medium flex items-center gap-2 text-red-500">
+                                <AlertTriangle className="h-3.5 w-3.5" />
+                                Alerta de Saturação
+                            </CardTitle>
                         </CardHeader>
                         <CardContent>
-                            <div className="text-2xl font-bold text-red-500">Centro / SP</div>
-                            <p className="text-xs text-muted-foreground">Taxa de mortalidade de 28% para gastronomia.</p>
+                            <div className="text-2xl font-bold text-red-500 tracking-tight">{data.insights?.highRisk?.location || "N/A"}</div>
+                            <p className="text-[11px] text-muted-foreground mt-1 leading-relaxed">Taxa de mortalidade de <span className="text-red-500 font-bold">{data.insights?.highRisk?.rate || "--"}</span> identificada neste setor/região.</p>
                         </CardContent>
                     </Card>
                 </div>
             </div>
 
             <div className="grid gap-4 md:grid-cols-2">
-                <Card>
+                <Card className="border-primary/5 bg-muted/5 backdrop-blur-sm">
                     <CardHeader>
-                        <CardTitle>Aberturas vs. Baixas</CardTitle>
-                        <CardDescription>Equilíbrio do ecossistema empresarial.</CardDescription>
+                        <CardTitle className="text-lg flex items-center gap-2">
+                            <BarChart3 className="h-5 w-5 text-primary" />
+                            Top Setores em Crescimento
+                        </CardTitle>
+                        <CardDescription>CNAEs com maior volume de registros nos últimos 180 dias.</CardDescription>
                     </CardHeader>
-                    <CardContent className="h-[250px] flex items-center justify-center text-muted-foreground">
-                        <BarChart3 className="mr-2 h-8 w-8 opacity-20" /> Compare Chart
+                    <CardContent className="h-[350px] pt-4">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <BarChart data={(data.hotSectors || []).map(s => ({ name: s.cnae_fiscal_principal, total: parseInt(s.total) || 0 }))} layout="vertical" margin={{ left: 20, right: 30 }}>
+                                <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="hsl(var(--border))" opacity={0.5} />
+                                <XAxis type="number" fontSize={11} tickLine={false} axisLine={false} tickFormatter={(value) => formatNumber(value)} />
+                                <YAxis dataKey="name" type="category" fontSize={10} tickLine={false} axisLine={false} width={100} />
+                                <Tooltip
+                                    contentStyle={{
+                                        backgroundColor: 'hsl(var(--background))',
+                                        border: '1px solid hsl(var(--border))',
+                                        borderRadius: '8px'
+                                    }}
+                                />
+                                <Bar dataKey="total" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} />
+                            </BarChart>
+                        </ResponsiveContainer>
                     </CardContent>
                 </Card>
-                <Card>
+                <Card className="border-primary/5 bg-muted/5 backdrop-blur-sm">
                     <CardHeader>
-                        <CardTitle>Natureza Jurídica</CardTitle>
-                        <CardDescription>Distribuição por tipo de constituição.</CardDescription>
+                        <CardTitle className="text-lg flex items-center gap-2">
+                            <PieChart className="h-5 w-5 text-primary" />
+                            Natureza Jurídica
+                        </CardTitle>
+                        <CardDescription>Distribuição por tipo de constituição empresarial.</CardDescription>
                     </CardHeader>
-                    <CardContent className="h-[250px] flex items-center justify-center text-muted-foreground">
-                        <PieChart className="mr-2 h-8 w-8 opacity-20" /> Distribution Pie
+                    <CardContent className="h-[350px] pt-4">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <RechartsPieChart>
+                                <Pie
+                                    data={(data.natureDistribution || []).map(n => ({ name: n.natureza_juridica, value: parseInt(n.total) || 0 }))}
+                                    cx="50%"
+                                    cy="50%"
+                                    innerRadius={60}
+                                    outerRadius={100}
+                                    paddingAngle={5}
+                                    dataKey="value"
+                                    label={({ name, percent }) => `${name.split(' ')[0]} ${(percent * 100).toFixed(0)}%`}
+                                    labelLine={false}
+                                >
+                                    {(data.natureDistribution || []).map((entry, index) => (
+                                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                    ))}
+                                </Pie>
+                                <Tooltip
+                                    contentStyle={{
+                                        backgroundColor: 'hsl(var(--background))',
+                                        border: '1px solid hsl(var(--border))',
+                                        borderRadius: '8px'
+                                    }}
+                                />
+                            </RechartsPieChart>
+                        </ResponsiveContainer>
                     </CardContent>
                 </Card>
             </div>
