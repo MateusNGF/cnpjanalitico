@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { TrendingUp, Map, BarChart3, PieChart, Loader2, AlertTriangle } from "lucide-react"
+import { TrendingUp, Map, BarChart3, PieChart, Loader2, AlertTriangle, Info } from "lucide-react"
 import { formatNumber, formatQuantity, formatCNAE, formatNaturezaJuridica } from "@/lib/utils";
 import {
     BarChart,
@@ -10,12 +10,18 @@ import {
     XAxis,
     YAxis,
     CartesianGrid,
-    Tooltip,
+    Tooltip as RechartsTooltip,
     ResponsiveContainer,
     PieChart as RechartsPieChart,
     Pie,
     Cell
 } from 'recharts';
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
+} from "@/components/ui/tooltip"
 
 interface MarketData {
     density: { uf: string, total: string }[];
@@ -103,7 +109,8 @@ export default function MarketPage() {
                                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" opacity={0.5} />
                                 <XAxis dataKey="uf" fontSize={11} tickLine={false} axisLine={false} />
                                 <YAxis fontSize={11} tickLine={false} axisLine={false} tickFormatter={(value) => formatNumber(value)} />
-                                <Tooltip
+                                <YAxis fontSize={11} tickLine={false} axisLine={false} tickFormatter={(value) => formatNumber(value)} />
+                                <RechartsTooltip
                                     formatter={(value: number) => [formatQuantity(value), "Empresas"]}
                                     contentStyle={{
                                         backgroundColor: 'var(--background)',
@@ -186,7 +193,7 @@ export default function MarketPage() {
                                 <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="hsl(var(--border))" opacity={0.5} />
                                 <XAxis type="number" fontSize={11} tickLine={false} axisLine={false} tickFormatter={(value) => formatNumber(value)} />
                                 <YAxis dataKey="name" type="category" fontSize={10} tickLine={false} axisLine={false} width={100} tickFormatter={(value) => formatCNAE(value)} />
-                                <Tooltip
+                                <RechartsTooltip
                                     formatter={(value: number) => [formatQuantity(value), "Empresas"]}
                                     contentStyle={{
                                         backgroundColor: 'var(--background)',
@@ -226,7 +233,7 @@ export default function MarketPage() {
                                         <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                                     ))}
                                 </Pie>
-                                <Tooltip
+                                <RechartsTooltip
                                     formatter={(value: number) => [formatQuantity(value), "Empresas"]}
                                     contentStyle={{
                                         backgroundColor: 'var(--background)',

@@ -1,6 +1,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Book, Cog, Database, Globe, ShieldCheck, Zap } from "lucide-react"
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
+import { Book, Cog, Database, Globe, ShieldCheck, Zap, Briefcase, TrendingUp } from "lucide-react"
 
 export default function DocsPage() {
     return (
@@ -71,51 +72,76 @@ export default function DocsPage() {
                 <TabsContent value="usage" className="mt-8 animate-in fade-in zoom-in-95 duration-300">
                     <Card className="border-primary/5 bg-muted/5 backdrop-blur-sm">
                         <CardHeader>
-                            <CardTitle className="text-xl">Nossa Tecnologia</CardTitle>
-                            <CardDescription>Como transformamos dados brutos em inteligência estratégica em 3 macro-etapas:</CardDescription>
+                            <CardTitle className="text-xl">Funcionalidades do Sistema</CardTitle>
+                            <CardDescription>Explore o potencial completo da plataforma para suas estratégias de negócio.</CardDescription>
                         </CardHeader>
-                        <CardContent className="space-y-8">
-                            <div className="flex gap-6 group">
-                                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary font-black text-xl border border-primary/20 shadow-lg shadow-primary/10 group-hover:scale-105 transition-transform">1</div>
-                                <div>
-                                    <h4 className="font-bold text-base mb-1 flex items-center gap-2">
-                                        Coleta de Alta Performance (Downloader Go)
-                                    </h4>
-                                    <p className="text-sm text-muted-foreground leading-relaxed">
-                                        Utilizamos binários em Go com processamento paralelo (Goroutines) para baixar os arquivos da Receita Federal 5x mais rápido que scripts convencionais. Isso garante que seu dado esteja sempre atualizado com o mês corrente.
-                                    </p>
-                                </div>
-                            </div>
+                        <CardContent>
+                            <Accordion type="single" collapsible className="w-full">
+                                <AccordionItem value="leads">
+                                    <AccordionTrigger className="text-left">
+                                        <div className="flex items-center gap-2">
+                                            <Briefcase className="h-4 w-4 text-primary" />
+                                            Prospecção e Leads B2B
+                                        </div>
+                                    </AccordionTrigger>
+                                    <AccordionContent className="text-muted-foreground leading-relaxed">
+                                        <p className="mb-2">
+                                            A aba <strong>Leads</strong> é o motor de busca principal. Aqui você pode filtrar os mais de 50 milhões de CNPJs ativos no Brasil para encontrar seu cliente ideal (ICP).
+                                        </p>
+                                        <ul className="list-disc pl-5 space-y-1 text-sm">
+                                            <li><strong>Filtros Geográficos:</strong> Selecione por Estado (UF) e Cidade para campanhas regionalizadas.</li>
+                                            <li><strong>Segmentação por CNAE:</strong> Busque por códigos específicos de atividade econômica (ex: Agências de Publicidade, Farmácias).</li>
+                                            <li><strong>Filtro de Capital Social:</strong> Encontre empresas com maior porte financeiro definindo um capital mínimo.</li>
+                                            <li><strong>Situação Cadastral:</strong> Foque apenas em empresas ATIVAS e evite leads inválidos.</li>
+                                            <li><strong>Exportação:</strong> Exporte os resultados para CSV/Excel para utilizar em seu CRM ou ferramentas de cold mail.</li>
+                                        </ul>
+                                    </AccordionContent>
+                                </AccordionItem>
 
-                            <div className="flex gap-6 group">
-                                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary font-black text-xl border border-primary/20 shadow-lg shadow-primary/10 group-hover:scale-105 transition-transform">2</div>
-                                <div>
-                                    <h4 className="font-bold text-base mb-1 flex items-center gap-2">
-                                        Engenharia de Dados (ETL Python/Polars)
-                                    </h4>
-                                    <p className="text-sm text-muted-foreground leading-relaxed">
-                                        Limpamos e processamos gigabytes de CSVs sem travar o servidor. Utilizamos a biblioteca Polars, que é otimizada para performance em multi-core, preparando o dado para consultas instantâneas.
-                                    </p>
-                                </div>
-                            </div>
+                                <AccordionItem value="market">
+                                    <AccordionTrigger className="text-left">
+                                        <div className="flex items-center gap-2">
+                                            <TrendingUp className="h-4 w-4 text-blue-500" />
+                                            Inteligência de Mercado
+                                        </div>
+                                    </AccordionTrigger>
+                                    <AccordionContent className="text-muted-foreground leading-relaxed">
+                                        <p className="mb-2">
+                                            A aba <strong>Market</strong> oferece uma visão macroscópica da economia. Utilize para identificar tendências antes dos seus concorrentes.
+                                        </p>
+                                        <ul className="list-disc pl-5 space-y-1 text-sm">
+                                            <li><strong>Oceano Azul:</strong> Algoritmo que cruza alta demanda com baixa concorrência, sugerindo as melhores cidades para abrir novos negócios.</li>
+                                            <li><strong>Setores Aquecidos:</strong> Identifica quais CNAEs tiveram maior crescimento percentual nos últimos 6 meses.</li>
+                                            <li><strong>Alerta de Saturação:</strong> Monitora setores com alta taxa de mortalidade (fechamento de empresas), indicando alto risco.</li>
+                                            <li><strong>Distribuição Geográfica:</strong> Mapas de calor (Heatmaps) mostrando onde o dinheiro está circulando.</li>
+                                        </ul>
+                                    </AccordionContent>
+                                </AccordionItem>
 
-                            <div className="flex gap-6 group">
-                                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary font-black text-xl border border-primary/20 shadow-lg shadow-primary/10 group-hover:scale-105 transition-transform">3</div>
-                                <div>
-                                    <h4 className="font-bold text-base mb-1 flex items-center gap-2">
-                                        Motor Analítico (ClickHouse)
-                                    </h4>
-                                    <p className="text-sm text-muted-foreground leading-relaxed">
-                                        Todas as consultas no dashboard (filtros, mapas e gráficos) rodam sobre o ClickHouse, o banco de dados analítico mais rápido do mundo. Filtros complexos em 50 milhões de linhas levam menos de 1 segundo.
-                                    </p>
-                                </div>
-                            </div>
-
-                            <div className="pt-8 border-t border-border/50 flex items-center justify-center gap-12 text-muted-foreground opacity-60">
-                                <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest"><Zap className="h-4 w-4 text-orange-400" /> Performance</div>
-                                <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest"><ShieldCheck className="h-4 w-4 text-blue-400" /> Segurança</div>
-                                <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest"><Database className="h-4 w-4 text-green-400" /> Sustentabilidade</div>
-                            </div>
+                                <AccordionItem value="tech">
+                                    <AccordionTrigger className="text-left">
+                                        <div className="flex items-center gap-2">
+                                            <Zap className="h-4 w-4 text-orange-500" />
+                                            Engenharia & Performance
+                                        </div>
+                                    </AccordionTrigger>
+                                    <AccordionContent className="text-muted-foreground leading-relaxed">
+                                        <p className="mb-2">
+                                            Nosso diferencial é a velocidade. Processamos Big Data governamental em tempo real.
+                                        </p>
+                                        <div className="grid gap-4 pt-2">
+                                            <div className="bg-background/50 p-3 rounded-lg border border-border/50">
+                                                <h5 className="font-bold text-xs uppercase tracking-wider mb-1 flex items-center gap-2"><Database className="h-3 w-3" /> ClickHouse</h5>
+                                                <p className="text-xs">Banco de dados analítico (OLAP) que permite queries em bilhões de linhas em milissegundos.</p>
+                                            </div>
+                                            <div className="bg-background/50 p-3 rounded-lg border border-border/50">
+                                                <h5 className="font-bold text-xs uppercase tracking-wider mb-1 flex items-center gap-2"><ShieldCheck className="h-3 w-3" /> Golang & Python</h5>
+                                                <p className="text-xs">Coleta paralela e processamento local garantem que os dados nunca saiam do seu ambiente controlado.</p>
+                                            </div>
+                                        </div>
+                                    </AccordionContent>
+                                </AccordionItem>
+                            </Accordion>
                         </CardContent>
                     </Card>
                 </TabsContent>
