@@ -60,13 +60,16 @@ export async function GET(req: NextRequest) {
         const monthlyGrowth = parseInt(historyData[0]?.novos || '0');
         const lastMonth = historyData[0]?.mes_label || '';
 
+        const closed = parseInt(statsData.find(s => s.situacao_cadastral === '08')?.count || '0');
+        const mortalityRate = total > 0 ? ((closed / total) * 100).toFixed(1) : 0;
+
         return NextResponse.json({
             summary: {
                 total,
                 active,
                 monthlyGrowth,
                 lastMonth,
-                mortalityRate: 12.5, // Placeholder por enquanto
+                mortalityRate,
             },
             topSectors: cnaeData,
             growthHistory

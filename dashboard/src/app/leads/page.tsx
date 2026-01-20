@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Search, Filter, Download, Briefcase, MapPin, DollarSign, X, Loader2, Info } from "lucide-react"
-import { formatNumber } from "@/lib/utils";
+import { formatNumber, formatCNPJ, formatCurrency, formatQuantity } from "@/lib/utils";
 
 interface Lead {
     cnpj_basico: string;
@@ -92,10 +92,6 @@ export default function LeadsPage() {
                 'bg-muted text-muted-foreground border-border';
         const label = SITUACOES.find(s => s.value === code)?.label || code;
         return <span className={`px-2 py-0.5 rounded border text-[10px] font-bold ${style}`}>{label}</span>;
-    };
-
-    const formatCNPJ = (basico: string, ordem: string, dv: string) => {
-        return `${basico.padStart(8, '0')}/${ordem.padStart(4, '0')}-${dv.padStart(2, '0')}`;
     };
 
     return (
@@ -224,7 +220,7 @@ export default function LeadsPage() {
                 <CardHeader className="flex flex-row items-center justify-between border-b pb-4 mb-4">
                     <div>
                         <CardTitle className="text-lg">Empresas Encontradas</CardTitle>
-                        <CardDescription>Visualizando {leads.length} leads qualificados.</CardDescription>
+                        <CardDescription>Visualizando {formatQuantity(leads.length)} leads qualificados.</CardDescription>
                     </div>
                     <div className="flex gap-2">
                         <Button variant="outline" size="sm" className="h-9">
@@ -280,7 +276,7 @@ export default function LeadsPage() {
                                             </TableCell>
                                             <TableCell>
                                                 <div className="text-[11px] font-mono font-medium text-foreground/80 mb-1">
-                                                    {formatCNPJ(lead.cnpj_basico, lead.cnpj_ordem, lead.cnpj_dv)}
+                                                    {formatCNPJ(lead.cnpj_basico + lead.cnpj_ordem + lead.cnpj_dv)}
                                                 </div>
                                                 {getSituacaoBadge(lead.situacao_cadastral)}
                                             </TableCell>
@@ -290,7 +286,7 @@ export default function LeadsPage() {
                                             </TableCell>
                                             <TableCell className="text-right">
                                                 <div className="text-[11px] font-bold text-primary">
-                                                    {lead.capital_social && lead.capital_social > 0 ? `R$ ${formatNumber(lead.capital_social)}` : "-"}
+                                                    {lead.capital_social && lead.capital_social > 0 ? formatCurrency(lead.capital_social) : "-"}
                                                 </div>
                                             </TableCell>
                                             <TableCell>

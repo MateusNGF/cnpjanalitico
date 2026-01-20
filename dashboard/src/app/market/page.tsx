@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { TrendingUp, Map, BarChart3, PieChart, Loader2, AlertTriangle } from "lucide-react"
-import { formatNumber } from "@/lib/utils";
+import { formatNumber, formatQuantity, formatCNAE, formatNaturezaJuridica } from "@/lib/utils";
 import {
     BarChart,
     Bar,
@@ -104,6 +104,7 @@ export default function MarketPage() {
                                 <XAxis dataKey="uf" fontSize={11} tickLine={false} axisLine={false} />
                                 <YAxis fontSize={11} tickLine={false} axisLine={false} tickFormatter={(value) => formatNumber(value)} />
                                 <Tooltip
+                                    formatter={(value: number) => [formatQuantity(value), "Empresas"]}
                                     contentStyle={{
                                         backgroundColor: 'var(--background)',
                                         border: '1px solid var(--border)',
@@ -143,8 +144,12 @@ export default function MarketPage() {
                             </CardTitle>
                         </CardHeader>
                         <CardContent>
-                            <div className="text-2xl font-bold text-blue-500 tracking-tight">{data.insights?.hotSector?.name || "N/A"}</div>
-                            <p className="text-[11px] text-muted-foreground mt-1 leading-relaxed"><span className="text-blue-500 font-bold">{data.insights?.hotSector?.growth || "--"}</span> de aberturas recentes em escala nacional.</p>
+                            <div className="text-2xl font-bold text-blue-500 tracking-tight">{formatCNAE(data.insights?.hotSector?.name || "")}</div>
+                            <p className="text-[11px] text-muted-foreground mt-1 leading-relaxed">
+                                <span className="text-blue-500 font-bold">
+                                    {formatQuantity(parseInt(data.insights?.hotSector?.growth || "0"))}
+                                </span> registros de aberturas recentes em escala nacional.
+                            </p>
                         </CardContent>
                     </Card>
                     <Card className="border-red-500/10 bg-gradient-to-br from-background to-red-500/5">
@@ -156,7 +161,11 @@ export default function MarketPage() {
                         </CardHeader>
                         <CardContent>
                             <div className="text-2xl font-bold text-red-500 tracking-tight">{data.insights?.highRisk?.location || "N/A"}</div>
-                            <p className="text-[11px] text-muted-foreground mt-1 leading-relaxed">Taxa de mortalidade de <span className="text-red-500 font-bold">{data.insights?.highRisk?.rate || "--"}</span> identificada neste setor/região.</p>
+                            <p className="text-[11px] text-muted-foreground mt-1 leading-relaxed">
+                                Taxa de mortalidade de <span className="text-red-500 font-bold">
+                                    {formatQuantity(parseInt(data.insights?.highRisk?.rate || "0"))}
+                                </span> baixas identificada neste setor/região.
+                            </p>
                         </CardContent>
                     </Card>
                 </div>
@@ -176,8 +185,9 @@ export default function MarketPage() {
                             <BarChart data={(data.hotSectors || []).map(s => ({ name: s.cnae_fiscal_principal, total: parseInt(s.total) || 0 }))} layout="vertical" margin={{ left: 20, right: 30 }}>
                                 <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="hsl(var(--border))" opacity={0.5} />
                                 <XAxis type="number" fontSize={11} tickLine={false} axisLine={false} tickFormatter={(value) => formatNumber(value)} />
-                                <YAxis dataKey="name" type="category" fontSize={10} tickLine={false} axisLine={false} width={100} />
+                                <YAxis dataKey="name" type="category" fontSize={10} tickLine={false} axisLine={false} width={100} tickFormatter={(value) => formatCNAE(value)} />
                                 <Tooltip
+                                    formatter={(value: number) => [formatQuantity(value), "Empresas"]}
                                     contentStyle={{
                                         backgroundColor: 'var(--background)',
                                         border: '1px solid var(--border)',
@@ -209,7 +219,7 @@ export default function MarketPage() {
                                     outerRadius={100}
                                     paddingAngle={5}
                                     dataKey="value"
-                                    label={({ name, percent }) => `${name.split(' ')[0]} ${(percent * 100).toFixed(0)}%`}
+                                    label={({ name, percent }) => `${formatNaturezaJuridica(name.split(' ')[0])} ${(percent * 100).toFixed(0)}%`}
                                     labelLine={false}
                                 >
                                     {(data.natureDistribution || []).map((entry, index) => (
@@ -217,6 +227,7 @@ export default function MarketPage() {
                                     ))}
                                 </Pie>
                                 <Tooltip
+                                    formatter={(value: number) => [formatQuantity(value), "Empresas"]}
                                     contentStyle={{
                                         backgroundColor: 'var(--background)',
                                         border: '1px solid var(--border)',

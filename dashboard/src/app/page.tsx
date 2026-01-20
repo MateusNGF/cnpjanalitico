@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { TrendingUp, Users, Building2, AlertTriangle, Loader2 } from "lucide-react"
-import { formatNumber } from "@/lib/utils";
+import { formatNumber, formatQuantity } from "@/lib/utils";
 import {
   BarChart,
   Bar,
@@ -115,7 +115,7 @@ export default function Home() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold tracking-tighter">{formatNumber(data.summary.total)}</div>
+            <div className="text-3xl font-bold tracking-tighter" title={formatQuantity(data.summary.total)}>{formatNumber(data.summary.total)}</div>
             <p className="text-[10px] text-muted-foreground mt-1 flex items-center gap-1">
               <span className="flex h-1.5 w-1.5 rounded-full bg-blue-500 animate-pulse"></span>
               Registros na base de dados (RFB)
@@ -131,7 +131,7 @@ export default function Home() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold tracking-tighter">{formatNumber(data.summary.active)}</div>
+            <div className="text-3xl font-bold tracking-tighter" title={formatQuantity(data.summary.active)}>{formatNumber(data.summary.active)}</div>
             <p className="text-[10px] text-muted-foreground mt-1 flex items-center gap-1">
               <span className="font-bold text-green-500">
                 {data.summary.total > 0 ? ((data.summary.active / data.summary.total) * 100).toFixed(1) : "0"}%
@@ -148,7 +148,7 @@ export default function Home() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold tracking-tighter">+{formatNumber(data.summary.monthlyGrowth)}</div>
+            <div className="text-3xl font-bold tracking-tighter" title={formatQuantity(data.summary.monthlyGrowth)}>+{formatNumber(data.summary.monthlyGrowth)}</div>
             <p className="text-[10px] text-muted-foreground mt-1">
               Novos CNPJs em <span className="font-bold uppercase">{data.summary.lastMonth}</span>
             </p>
@@ -188,6 +188,7 @@ export default function Home() {
                 <XAxis dataKey="name" fontSize={11} tickLine={false} axisLine={false} />
                 <YAxis fontSize={11} tickLine={false} axisLine={false} tickFormatter={(value) => formatNumber(value)} />
                 <Tooltip
+                  formatter={(value: number) => [formatQuantity(value), "Novas Empresas"]}
                   contentStyle={{
                     backgroundColor: 'var(--background)',
                     border: '1px solid var(--border)',
@@ -220,7 +221,7 @@ export default function Home() {
               <div key={item.name} className="space-y-2 group cursor-pointer">
                 <div className="flex items-center justify-between text-xs">
                   <span className="font-semibold group-hover:text-primary transition-colors">CNAE {item.name}</span>
-                  <span className="text-muted-foreground font-mono">{formatNumber(item.value)}</span>
+                  <span className="text-muted-foreground font-mono">{formatQuantity(item.value)}</span>
                 </div>
                 <div className="h-1.5 w-full rounded-full bg-secondary overflow-hidden">
                   <div

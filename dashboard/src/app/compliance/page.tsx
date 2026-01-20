@@ -2,6 +2,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { ShieldAlert, Search, Clock, BadgeCheck, TrendingUp } from "lucide-react"
+import { formatCNPJ, formatCurrency, formatDate } from "@/lib/utils"
 
 export default function CompliancePage() {
     return (
@@ -37,7 +38,7 @@ export default function CompliancePage() {
                             <div className="flex items-start justify-between relative z-10">
                                 <div>
                                     <h3 className="font-black text-2xl tracking-tighter uppercase">EMPRESA ESTRATÉGICA S.A.</h3>
-                                    <p className="text-sm font-mono text-muted-foreground mt-1">00.000.000/0001-91</p>
+                                    <p className="text-sm font-mono text-muted-foreground mt-1">{formatCNPJ("00000000000191")}</p>
                                 </div>
                                 <div className="bg-green-500/10 text-green-500 px-4 py-1.5 rounded-full text-xs font-black border border-green-500/20 shadow-sm shadow-green-500/10">
                                     ATIVA
@@ -51,7 +52,7 @@ export default function CompliancePage() {
                                 </div>
                                 <div className="p-4 rounded-xl bg-muted/30 border border-border/50">
                                     <p className="text-[10px] text-muted-foreground uppercase font-black tracking-widest mb-1">Capital Integralizado</p>
-                                    <p className="font-bold text-xl">R$ 5.000.000</p>
+                                    <p className="font-bold text-xl">{formatCurrency(5000000)}</p>
                                 </div>
                                 <div className="p-4 rounded-xl bg-primary/10 border border-primary/20 border-dashed">
                                     <p className="text-[10px] text-primary uppercase font-black tracking-widest mb-1">Score de Risco</p>
@@ -83,15 +84,15 @@ export default function CompliancePage() {
                     <CardContent>
                         <div className="relative border-l border-primary/20 ml-4 space-y-8 pb-4">
                             {[
-                                { date: "15 JAN 2026", msg: "Aumento de Capital Social integralizado via reservas.", type: "capital" },
-                                { date: "24 OUT 2024", msg: "Alteração no quadro de sócios e administradores (QSA).", type: "socio" },
-                                { date: "02 MAI 2022", msg: "Atualização de endereço de filial em Curitiba/PR.", type: "address" },
+                                { date: "2026-01-15", msg: "Aumento de Capital Social integralizado via reservas.", type: "capital" },
+                                { date: "2024-10-24", msg: "Alteração no quadro de sócios e administradores (QSA).", type: "socio" },
+                                { date: "2022-05-02", msg: "Atualização de endereço de filial em Curitiba/PR.", type: "address" },
                             ].map((item, i) => (
                                 <div key={i} className="relative pl-8 group">
                                     <div className="absolute -left-[6px] top-1 h-3 w-3 rounded-full bg-background border-2 border-primary transition-transform group-hover:scale-125 z-10" />
                                     <div className="absolute -left-[10px] top-0 h-5 w-5 rounded-full bg-primary/10 blur-sm opacity-0 group-hover:opacity-100 transition-opacity" />
 
-                                    <p className="text-[10px] font-black text-primary/60 tracking-widest uppercase mb-1">{item.date}</p>
+                                    <p className="text-[10px] font-black text-primary/60 tracking-widest uppercase mb-1">{formatDate(item.date)}</p>
                                     <p className="text-sm font-medium leading-relaxed text-foreground/80">{item.msg}</p>
                                 </div>
                             ))}
@@ -129,14 +130,14 @@ export default function CompliancePage() {
                     <CardContent className="p-0">
                         <div className="divide-y divide-border/40">
                             {[
-                                { name: "Audit Tech Soluções LTDA", time: "Há 2 horas", cnpj: "12.345.678/0001-90" },
-                                { name: "Logística Global Brasil S.A.", time: "Há 5 horas", cnpj: "98.765.432/0001-01" },
-                                { name: "Consultoria Premium Group", time: "Ontem às 14:00", cnpj: "55.444.333/0002-11" },
+                                { name: "Audit Tech Soluções LTDA", time: "Há 2 horas", cnpj: "12345678000190" },
+                                { name: "Logística Global Brasil S.A.", time: "Há 5 horas", cnpj: "98765432000101" },
+                                { name: "Consultoria Premium Group", time: "Ontem às 14:00", cnpj: "55444333000211" },
                             ].map((item, i) => (
                                 <div key={i} className="flex items-center justify-between p-5 hover:bg-primary/[0.03] cursor-pointer transition-colors group">
                                     <div>
                                         <div className="text-sm font-bold group-hover:text-primary transition-colors uppercase tracking-tight">{item.name}</div>
-                                        <div className="text-[10px] font-mono text-muted-foreground mt-0.5">{item.cnpj}</div>
+                                        <div className="text-[10px] font-mono text-muted-foreground mt-0.5">{formatCNPJ(item.cnpj)}</div>
                                     </div>
                                     <div className="text-[11px] font-medium text-muted-foreground py-1 px-2 bg-muted/50 rounded-md">{item.time}</div>
                                 </div>

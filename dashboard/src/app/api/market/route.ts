@@ -45,20 +45,50 @@ export async function GET(req: NextRequest) {
             format: 'JSONEachRow'
         }).then(res => res.json());
 
-        const [densityData, hotSectorsData, natureData] = await Promise.all([
-            densityPromise,
-            hotSectorsPromise,
-            naturePromise
+        // 4. High Risk (UF com mais baixas)
+        const highRiskPromise = clickhouse.query({
+            query: `
+                SELECT 
+                    uf, 
+                    sum(total) as total
+                FROM cnpj_analytics.mv_resumo_uf
+                WHERE situacao_cadastral = '08'
+                GROUP BY uf
+                ORDER BY total DESC
+                LIMIT 1
+            `,
+            format: 'JSONEachRow'
+        }).then(res => res.json());
+
+        const [densityData, hotSectorsData, natureData, highRiskData] = await Promise.all([
+            densityPromise as Promise<any[]>,
+            hotSectorsPromise as Promise<any[]>,
+            naturePromise as Promise<any[]>,
+            highRiskPromise as Promise<any[]>
         ]);
+
+        // Processamento dos Insights
+        const topGrowthUF = densityData?.[0] || { uf: "N/A", total: 0 };
+        const topSector = hotSectorsData?.[0] || { cnae_fiscal_principal: "N/A", total: 0 };
+        const riskUF = highRiskData?.[0] || { uf: "N/A", total: 0 };
 
         return NextResponse.json({
             density: densityData,
             hotSectors: hotSectorsData,
             natureDistribution: natureData,
             insights: {
-                blueOcean: { location: "Curitiba/PR", reason: "Alta renda, baixa densidade de Petshops" }, // Placeholder
-                hotSector: { name: "Energia Solar", growth: "+45%" }, // Placeholder
-                highRisk: { location: "Centro / SP", rate: "28%" } // Placeholder
+                blueOcean: {
+                    location: `${topGrowthUF.uf}`,
+                    reason: "Maior densidade de empresas ativas"
+                },
+                hotSector: {
+                    name: topSector.cnae_fiscal_principal,
+                    growth: `${topSector.total} registros`
+                },
+                highRisk: {
+                    location: `${riskUF.uf}`,
+                    rate: `${riskUF.total} baixas`
+                }
             }
         });
     } catch (error) {
