@@ -8,6 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Search, Filter, Download, Briefcase, MapPin, DollarSign, X, Loader2, Info } from "lucide-react"
 import { formatNumber, formatCNPJ, formatCurrency, formatQuantity } from "@/lib/utils";
+import { LeadDetailsSheet } from "@/components/LeadDetailsSheet";
 
 interface Lead {
     cnpj_basico: string;
@@ -38,6 +39,8 @@ const SITUACOES = [
 export default function LeadsPage() {
     const [leads, setLeads] = useState<Lead[]>([]);
     const [loading, setLoading] = useState(false);
+    const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
+    const [isSheetOpen, setIsSheetOpen] = useState(false);
     const [filters, setFilters] = useState({
         cnae: '',
         uf: 'TODOS',
@@ -45,6 +48,11 @@ export default function LeadsPage() {
         situacao: '02',
         capital_min: ''
     });
+
+    const handleOpenDetails = (lead: Lead) => {
+        setSelectedLead(lead);
+        setIsSheetOpen(true);
+    };
 
     const fetchLeads = async () => {
         setLoading(true);
@@ -240,7 +248,6 @@ export default function LeadsPage() {
                                     <TableHead className="py-4">CNPJ / Status</TableHead>
                                     <TableHead className="py-4">Cidade / UF</TableHead>
                                     <TableHead className="py-4 text-right">Capital Social</TableHead>
-                                    <TableHead className="py-4">Contato</TableHead>
                                     <TableHead className="py-4 text-right">Ações</TableHead>
                                 </TableRow>
                             </TableHeader>
@@ -265,7 +272,11 @@ export default function LeadsPage() {
                                     </TableRow>
                                 ) : (
                                     leads.map((lead) => (
-                                        <TableRow key={`${lead.cnpj_basico}${lead.cnpj_ordem}${lead.cnpj_dv}`} className="group cursor-pointer hover:bg-primary/[0.02] transition-colors">
+                                        <TableRow
+                                            key={`${lead.cnpj_basico}${lead.cnpj_ordem}${lead.cnpj_dv}`}
+                                            className="group cursor-pointer hover:bg-primary/[0.02] transition-colors"
+                                            onClick={() => handleOpenDetails(lead)}
+                                        >
                                             <TableCell className="max-w-[300px]">
                                                 <div className="font-semibold group-hover:text-primary transition-colors uppercase text-[11px] truncate" title={lead.razao_social || 'SEM RAZÃO SOCIAL'}>
                                                     {lead.razao_social || 'Sem Razão Social'}
@@ -289,14 +300,18 @@ export default function LeadsPage() {
                                                     {lead.capital_social && lead.capital_social > 0 ? formatCurrency(lead.capital_social) : "-"}
                                                 </div>
                                             </TableCell>
-                                            <TableCell>
-                                                <div className="text-[10px] lowercase text-foreground/70 mb-0.5">{lead.correio_eletronico || 'E-mail não informado'}</div>
-                                                <div className="text-[10px] text-muted-foreground font-mono">
-                                                    {lead.ddd1 && lead.telefone1 ? `(${lead.ddd1}) ${lead.telefone1}` : 'Sem telefone'}
-                                                </div>
-                                            </TableCell>
                                             <TableCell className="text-right">
-                                                <Button variant="ghost" size="sm" className="h-8 px-2 hover:bg-primary/10 hover:text-primary transition-colors">Detalhes</Button>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    className="h-8 px-2 hover:bg-primary/10 hover:text-primary transition-colors"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        handleOpenDetails(lead);
+                                                    }}
+                                                >
+                                                    Detalhes
+                                                </Button>
                                             </TableCell>
                                         </TableRow>
                                     ))
@@ -306,6 +321,12 @@ export default function LeadsPage() {
                     </div>
                 </CardContent>
             </Card>
+
+            <LeadDetailsSheet
+                lead={selectedLead}
+                open={isSheetOpen}
+                onOpenChange={setIsSheetOpen}
+            />
         </div>
     )
 }
