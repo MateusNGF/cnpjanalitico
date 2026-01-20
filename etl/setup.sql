@@ -10,7 +10,11 @@ CREATE DATABASE IF NOT EXISTS cnpj_analytics;
 
 CREATE TABLE IF NOT EXISTS cnpj_analytics.dim_municipios (
     codigo FixedString(4), -- Código IBGE sem dígito verificador usualmente
-    descricao String
+    descricao String,
+    codigo_ibge FixedString(7),  -- Novo: Código IBGE (Para Mapas)
+    uf FixedString(2),           -- Novo: Estado (Facilita filtros)
+    latitude Float64,            -- Novo: Opcional (se disponível)
+    longitude Float64            -- Novo: Opcional (se disponível)
 ) ENGINE = MergeTree() ORDER BY codigo;
 
 CREATE TABLE IF NOT EXISTS cnpj_analytics.dim_cnae (
