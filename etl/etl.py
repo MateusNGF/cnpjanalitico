@@ -25,7 +25,9 @@ FILES_CONFIG = {
         'columns': [
             'cnpj_basico', 'cnpj_ordem', 'cnpj_dv', 'identificador_matriz_filial', 
             'nome_fantasia', 'situacao_cadastral', 'data_situacao_cadastral', 
-            'cnae_fiscal_principal', 'uf', 'municipio', 'data_inicio_atividade', 
+            'cnae_fiscal_principal', 
+            'tipo_logradouro', 'logradouro', 'numero', 'complemento', 'bairro', 'cep',
+            'uf', 'municipio', 'data_inicio_atividade', 
             'ddd1', 'telefone1', 'correio_eletronico'
         ]
     },
@@ -157,6 +159,12 @@ def process_file(filepath, file_type, client):
             pl.col("column_7").alias("data_situacao_cadastral"), # Data
             pl.col("column_11").alias("data_inicio_atividade"),  # Data
             pl.col("column_12").alias("cnae_fiscal_principal"),
+            pl.col("column_14").str.strip_chars().alias("tipo_logradouro"),
+            pl.col("column_15").str.strip_chars().alias("logradouro"),
+            pl.col("column_16").str.strip_chars().alias("numero"),
+            pl.col("column_17").str.strip_chars().alias("complemento"),
+            pl.col("column_18").str.strip_chars().alias("bairro"),
+            pl.col("column_19").str.replace(r"\D", "").alias("cep"),
             pl.col("column_20").alias("uf"),
             pl.col("column_21").alias("municipio"),
             pl.col("column_22").alias("ddd1"),
