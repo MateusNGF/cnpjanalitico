@@ -17,6 +17,7 @@ import {
     Cell
 } from 'recharts';
 import { PageHeader } from "@/components/common/PageHeader";
+import MarketMap from "@/components/geo/MarketMap";
 
 interface MarketData {
     density: { uf: string, total: string }[];
@@ -95,39 +96,8 @@ export default function MarketPage() {
             />
 
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                <Card className="col-span-2 border-primary/5 bg-muted/5 backdrop-blur-sm">
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                            <Map className="h-5 w-5 text-primary" />
-                            Densidade Empresarial por UF
-                        </CardTitle>
-                        <CardDescription>Concentração de empresas ativas por região do Brasil.</CardDescription>
-                    </CardHeader>
-                    <CardContent className="h-[400px] pt-4">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <BarChart data={(data.density || []).slice(0, 15)} margin={{ top: 20, right: 30, left: 0, bottom: 0 }}>
-                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" opacity={0.5} />
-                                <XAxis dataKey="uf" fontSize={11} tickLine={false} axisLine={false} />
-                                <YAxis fontSize={11} tickLine={false} axisLine={false} tickFormatter={(value) => formatNumber(value)} />
-                                <RechartsTooltip
-                                    formatter={(value: number) => [formatQuantity(value), "Empresas"]}
-                                    contentStyle={{
-                                        backgroundColor: 'var(--background)',
-                                        border: '1px solid var(--border)',
-                                        borderRadius: '8px',
-                                        boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
-                                    }}
-                                    itemStyle={{ color: 'var(--foreground)' }}
-                                />
-                                <Bar dataKey="total" fill="var(--primary)" radius={[4, 4, 0, 0]} barSize={30}>
-                                    {(data.density || []).map((entry, index) => (
-                                        <Cell key={`cell-${index}`} fill={index === 0 ? 'var(--primary)' : 'var(--muted-foreground)'} />
-                                    ))}
-                                </Bar>
-                            </BarChart>
-                        </ResponsiveContainer>
-                    </CardContent>
-                </Card>
+                <MarketMap uf="SP" />
+
 
                 <div className="flex flex-col gap-4">
                     <Card className="border-green-500/10 bg-gradient-to-br from-background to-green-500/5">
