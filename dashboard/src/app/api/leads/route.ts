@@ -12,8 +12,8 @@ const leadsQuerySchema = z.object({
         return isNaN(parsed) ? 0 : parsed;
     }),
     limit: z.string().optional().transform(val => {
-        const parsed = val ? parseInt(val, 10) : 100;
-        return isNaN(parsed) ? 100 : parsed;
+        const parsed = val ? parseInt(val, 10) : 30;
+        return isNaN(parsed) ? 30 : parsed;
     }),
 });
 
