@@ -19,6 +19,7 @@ import {
 import { PageHeader } from "@/components/common/PageHeader";
 import { PageContent } from "@/components/common/PageContent";
 import MarketMap from "@/components/geo/MarketMap";
+import { UFSelector } from "@/components/LeadsFilter";
 
 interface MarketData {
     density: { uf: string, total: string }[];
@@ -35,9 +36,18 @@ export default function MarketPage() {
     const [data, setData] = useState<MarketData | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(false);
+    const [selectedUF, setSelectedUF] = useState('TODOS');
 
     useEffect(() => {
-        fetch('/api/market')
+        setLoading(true);
+        setError(false);
+
+        const params = new URLSearchParams();
+        if (selectedUF !== 'MG') {
+            params.append('uf', selectedUF);
+        }
+
+        fetch(`/api/market?${params.toString()}`)
             .then(res => {
                 if (!res.ok) throw new Error('Failed to fetch');
                 return res.json();
@@ -51,7 +61,7 @@ export default function MarketPage() {
                 setError(true);
                 setLoading(false);
             });
-    }, []);
+    }, [selectedUF]);
 
     if (loading) {
         return (
@@ -94,11 +104,20 @@ export default function MarketPage() {
                     { label: "Dashboard", href: "/" },
                     { label: "Inteligência" }
                 ]}
+                actions={
+                    <UFSelector
+                        value={selectedUF}
+                        onChange={(val: string) => setSelectedUF(val)}
+                    />
+                }
             />
 
             <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
                 <div className="lg:col-span-2">
-                    <MarketMap uf="MG" />
+                    <MarketMap
+                        key={selectedUF}
+                        uf={selectedUF === 'TODOS' ? undefined : selectedUF}
+                    />
                 </div>
 
 

@@ -3,6 +3,12 @@ import { clickhouse } from '@/lib/clickhouse';
 
 export async function GET(req: NextRequest) {
     try {
+        const searchParams = req.nextUrl.searchParams;
+        const uf = searchParams.get('uf');
+
+        // Construir cláusula WHERE para filtro de UF
+        const ufFilter = uf ? `AND uf = '${uf}'` : '';
+
         // 1. Densidade por UF (Empresas Ativas)
         const densityPromise = clickhouse.query({
             query: `
@@ -10,7 +16,7 @@ export async function GET(req: NextRequest) {
                     uf, 
                     sum(total) as total
                 FROM cnpj_analytics.mv_resumo_uf
-                WHERE situacao_cadastral = '02'
+                WHERE situacao_cadastral = '02' ${ufFilter}
                 GROUP BY uf
                 ORDER BY total DESC
             `,
@@ -18,30 +24,54 @@ export async function GET(req: NextRequest) {
         }).then(res => res.json());
 
         // 2. Setores Aquecidos (Top CNAEs)
+        const hotSectorsQuery = uf ? `
+            SELECT 
+                cnae_fiscal_principal,
+                count() as total
+            FROM cnpj_analytics.estabelecimentos
+            WHERE uf = '${uf}' AND situacao_cadastral = '02'
+            GROUP BY cnae_fiscal_principal
+            ORDER BY total DESC
+            LIMIT 10
+        ` : `
+            SELECT 
+                cnae_fiscal_principal,
+                sum(total) as total
+            FROM cnpj_analytics.mv_cnae_ranking
+            GROUP BY cnae_fiscal_principal
+            ORDER BY total DESC
+            LIMIT 10
+        `;
+
         const hotSectorsPromise = clickhouse.query({
-            query: `
-                SELECT 
-                    cnae_fiscal_principal,
-                    sum(total) as total
-                FROM cnpj_analytics.mv_cnae_ranking
-                GROUP BY cnae_fiscal_principal
-                ORDER BY total DESC
-                LIMIT 10
-            `,
+            query: hotSectorsQuery,
             format: 'JSONEachRow'
         }).then(res => res.json());
 
         // 3. Natureza Jurídica (Distribuição)
+        const natureQuery = uf ? `
+            SELECT 
+                natureza_juridica,
+                count() as total
+            FROM cnpj_analytics.empresas e
+            INNER JOIN cnpj_analytics.estabelecimentos est 
+                ON e.cnpj_basico = est.cnpj_basico
+            WHERE est.uf = '${uf}' AND est.situacao_cadastral = '02'
+            GROUP BY natureza_juridica
+            ORDER BY total DESC
+            LIMIT 5
+        ` : `
+            SELECT 
+                natureza_juridica,
+                count() as total
+            FROM cnpj_analytics.empresas
+            GROUP BY natureza_juridica
+            ORDER BY total DESC
+            LIMIT 5
+        `;
+
         const naturePromise = clickhouse.query({
-            query: `
-                SELECT 
-                    natureza_juridica,
-                    count() as total
-                FROM cnpj_analytics.empresas
-                GROUP BY natureza_juridica
-                ORDER BY total DESC
-                LIMIT 5
-            `,
+            query: natureQuery,
             format: 'JSONEachRow'
         }).then(res => res.json());
 
@@ -52,7 +82,7 @@ export async function GET(req: NextRequest) {
                     uf, 
                     sum(total) as total
                 FROM cnpj_analytics.mv_resumo_uf
-                WHERE situacao_cadastral = '08'
+                WHERE situacao_cadastral = '08' ${ufFilter}
                 GROUP BY uf
                 ORDER BY total DESC
                 LIMIT 1
