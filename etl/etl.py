@@ -11,6 +11,8 @@ from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TaskPr
 from rich.live import Live
 from rich.panel import Panel
 from rich.layout import Layout
+import concurrent.futures
+import queue
 
 console = Console()
 
@@ -136,7 +138,7 @@ def init_db(client):
 # ---------------------------------------------------------
 # PIPELINE DE DADOS (POLARS)
 # ---------------------------------------------------------
-def process_file(filepath, file_type, client, progress, overall_task, file_summary):
+def process_file(filepath, file_type, client, progress, overall_task, file_summary, ui_callback=None):
     config = FILES_CONFIG[file_type]
     table_name = f'{DB_NAME}.{config["table"]}'
     filename = os.path.basename(filepath)
@@ -151,6 +153,7 @@ def process_file(filepath, file_type, client, progress, overall_task, file_summa
         "status": "[yellow]Iniciando...[/yellow]"
     }
     file_summary.append(file_record)
+    if ui_callback: ui_callback()
 
     # Lazy Frame: Não carrega nada na memória ainda
     q = pl.scan_csv(
@@ -253,6 +256,7 @@ def process_file(filepath, file_type, client, progress, overall_task, file_summa
 
         file_task = progress.add_task(f"[cyan]{filename}", total=total_rows)
         file_record["status"] = "[blue]Processando...[/blue]"
+        if ui_callback: ui_callback()
         
         for i in range(0, total_rows, BATCH_SIZE):
             batch = processed_batches.slice(i, BATCH_SIZE)
@@ -274,15 +278,18 @@ def process_file(filepath, file_type, client, progress, overall_task, file_summa
                         raise e
             
             progress.update(file_task, advance=batch.height)
+            if ui_callback: ui_callback()
             
         file_record["status"] = "[green]Sucesso[/green]"
         file_record["end"] = datetime.now().strftime("%H:%M:%S")
+        if ui_callback: ui_callback()
         progress.remove_task(file_task)
         progress.update(overall_task, advance=1)
         
     except Exception as e:
         file_record["status"] = f"[red]Erro: {str(e)[:30]}...[/red]"
         file_record["end"] = datetime.now().strftime("%H:%M:%S")
+        if ui_callback: ui_callback()
 
 # ---------------------------------------------------------
 # MAIN
@@ -346,6 +353,7 @@ def main():
         TextColumn("[progress.description]{task.description}"),
         BarColumn(),
         TaskProgressColumn(),
+        TextColumn("[progress.percentage]{task.completed}/{task.total}"),
         TimeElapsedColumn(),
         console=console
     )
@@ -364,10 +372,52 @@ def main():
             overall_task = progress.add_task("[bold green]Progresso Geral", total=len(all_valid_files))
             layout["footer"].update(Panel(progress, title="Processamento Atual"))
 
+        # Organizado em 3 grupos com prioridade (balanceamento dinâmico)
+            # Priority: 1 = alta (dimensões), 2 = média (dados empresas), 3 = baixa (estabelecimentos grandes)
+            work_queue = queue.PriorityQueue()
+            
             for f_path, f_type in all_valid_files:
+                if f_type in ['CNAE', 'MUNIC', 'MOTI', 'NATJU']:
+                    priority = 1  # Processar primeiro (pequenos, necessários para JOINs)
+                elif f_type in ['SIMPLES', 'EMPRE', 'SOCIO']:
+                    priority = 2  # Processar em seguida
+                else:  # ESTABELE
+                    priority = 3  # Processar por último (mais pesados)
+                work_queue.put((priority, f_path, f_type))
+
+            # Função de callback para atualizar UI
+            def refresh_ui():
                 layout["body"].update(generate_table())
-                process_file(f_path, f_type, client, progress, overall_task, file_summary)
-                layout["body"].update(generate_table())
+
+            # Função do Worker com balanceamento dinâmico
+            def worker_process():
+                # Cada thread precisa de sua própria conexão
+                local_client = get_client()
+                try:
+                    while True:
+                        try:
+                            # Timeout de 1 segundo para evitar bloqueio infinito
+                            priority, fp, ft = work_queue.get(timeout=1)
+                            refresh_ui()
+                            process_file(fp, ft, local_client, progress, overall_task, file_summary, ui_callback=refresh_ui)
+                            refresh_ui()
+                            work_queue.task_done()
+                        except queue.Empty:
+                            # Fila vazia, worker pode terminar
+                            break
+                finally:
+                    pass
+
+            # Executa com ThreadPoolExecutor (3 workers balanceados)
+            with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:
+                futures = [executor.submit(worker_process) for _ in range(3)]
+                
+                # Aguarda conclusão e trata exceções
+                for future in concurrent.futures.as_completed(futures):
+                    try:
+                        future.result()
+                    except Exception as exc:
+                        console.print(f"[bold red]Exceção em worker: {exc}[/bold red]")
 
         console.print(f"\n[bold green]Concluído com sucesso. {len(all_valid_files)} arquivos processados.[/bold green]")
     except Exception as e:

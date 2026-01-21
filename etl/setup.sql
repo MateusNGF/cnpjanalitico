@@ -203,3 +203,70 @@ FROM cnpj_analytics.estabelecimentos e
 LEFT JOIN cnpj_analytics.empresas emp ON e.cnpj_basico = emp.cnpj_basico
 LEFT JOIN cnpj_analytics.dim_cnae c ON e.cnae_fiscal_principal = c.codigo
 LEFT JOIN cnpj_analytics.dim_municipios m ON e.municipio = m.codigo;
+
+-- --------------------------------------------------------
+-- 6. Advanced Analytics & Enrichment
+-- Novas views para inteligência de mercado e análise de risco
+-- --------------------------------------------------------
+
+-- MV: Mortalidade de Empresas (Churn/Baixas)
+CREATE MATERIALIZED VIEW IF NOT EXISTS cnpj_analytics.mv_mortalidade_mensal
+ENGINE = SummingMergeTree()
+ORDER BY (ano_mes, uf) AS
+SELECT 
+    toStartOfMonth(data_situacao_cadastral) as ano_mes,
+    uf,
+    count() as empresas_baixadas
+FROM cnpj_analytics.estabelecimentos
+WHERE situacao_cadastral = '08' -- Código usual para BAIXADA
+GROUP BY ano_mes, uf;
+
+-- MV: Serial Entrepreneurs (Sócios com múltiplas empresas)
+CREATE MATERIALIZED VIEW IF NOT EXISTS cnpj_analytics.mv_top_socios
+ENGINE = SummingMergeTree()
+ORDER BY (nome_socio_hash) AS
+SELECT 
+    sipHash64(nome_socio) as nome_socio_hash, -- Hash para performance e privacidade
+    any(nome_socio) as nome_exibicao,
+    count() as qtd_empresas,
+    uniq(cnpj_basico) as qtd_cnpjs_unicos
+FROM cnpj_analytics.socios
+WHERE nome_socio != ''
+GROUP BY nome_socio_hash;
+
+-- VIEW: Segmentação de Mercado por Porte Real (Estimativa)
+-- Combina Capital Social e Regime Tributário para granularidade fina
+CREATE VIEW IF NOT EXISTS cnpj_analytics.v_segmentacao_mercado AS
+SELECT 
+    e.cnpj_basico,
+    m.uf,
+    CASE 
+        WHEN emp.capital_social > 10000000 THEN 'Corporativo (>10M)'
+        WHEN emp.capital_social > 1000000 THEN 'Médio Porte (1M-10M)'
+        WHEN s.opcao_pelo_mei = 'S' THEN 'MEI'
+        ELSE 'Pequeno Porte'
+    END as segmento_estimado,
+    c.descricao as setor_atividade
+FROM cnpj_analytics.estabelecimentos e
+JOIN cnpj_analytics.empresas emp ON e.cnpj_basico = emp.cnpj_basico
+LEFT JOIN cnpj_analytics.simples s ON e.cnpj_basico = s.cnpj_basico
+LEFT JOIN cnpj_analytics.dim_cnae c ON e.cnae_fiscal_principal = c.codigo
+WHERE e.situacao_cadastral = '02'; -- Apenas Ativas
+
+-- MV: Faixa Etária das Empresas (Maturidade do Negócio)
+CREATE MATERIALIZED VIEW IF NOT EXISTS cnpj_analytics.mv_faixa_idade_empresas
+ENGINE = SummingMergeTree()
+ORDER BY (uf, faixa_idade) AS
+SELECT
+    uf,
+    CASE
+        WHEN dateDiff('year', data_inicio_atividade, now()) < 1 THEN '0-1 Ano'
+        WHEN dateDiff('year', data_inicio_atividade, now()) < 3 THEN '1-3 Anos'
+        WHEN dateDiff('year', data_inicio_atividade, now()) < 5 THEN '3-5 Anos'
+        ELSE '5+ Anos'
+    END as faixa_idade,
+    count() as total
+FROM cnpj_analytics.estabelecimentos
+WHERE situacao_cadastral = '02'
+GROUP BY uf, faixa_idade;
+
