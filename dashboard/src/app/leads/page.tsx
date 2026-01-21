@@ -7,7 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Download, Briefcase, MapPin, DollarSign, Loader2, Info, Building2 } from "lucide-react"
 import { formatCNPJ, formatCurrency, formatQuantity } from "@/lib/utils";
 import { LeadDetailsSheet } from "@/components/LeadDetailsSheet";
-import { LeadsFilter, UFS, SITUACOES } from "@/components/LeadsFilter";
+import { LeadsFilter, UFSelector, AdvancedFiltersTrigger, SITUACOES } from "@/components/LeadsFilter";
 import { PageHeader } from "@/components/common/PageHeader";
 import { PageContent } from "@/components/common/PageContent";
 
@@ -44,15 +44,15 @@ export default function LeadsPage() {
         setIsSheetOpen(true);
     };
 
-    const fetchLeads = async () => {
+    const fetchLeads = async (currentFilters = filters) => {
         setLoading(true);
         try {
             const params = new URLSearchParams();
-            if (filters.cnae) params.append('cnae', filters.cnae);
-            if (filters.uf !== 'TODOS') params.append('uf', filters.uf);
-            if (filters.municipio) params.append('municipio', filters.municipio);
-            if (filters.situacao !== 'TODOS') params.append('situacao', filters.situacao);
-            if (filters.capital_min) params.append('capital_min', filters.capital_min);
+            if (currentFilters.cnae) params.append('cnae', currentFilters.cnae);
+            if (currentFilters.uf !== 'TODOS') params.append('uf', currentFilters.uf);
+            if (currentFilters.municipio) params.append('municipio', currentFilters.municipio);
+            if (currentFilters.situacao !== 'TODOS') params.append('situacao', currentFilters.situacao);
+            if (currentFilters.capital_min) params.append('capital_min', currentFilters.capital_min);
 
             const res = await fetch(`/api/leads?${params.toString()}`);
             const data = await res.json();
@@ -103,18 +103,30 @@ export default function LeadsPage() {
                     { label: "Prospecção B2B" }
                 ]}
                 actions={
-                    <Button variant="outline" size="sm" className="h-9 shadow-sm hover:bg-primary/5 transition-all">
-                        <Download className="mr-2 h-4 w-4" /> Exportar Dados
-                    </Button>
+                    <div className="flex items-center gap-2">
+                        <UFSelector
+                            value={filters.uf}
+                            onChange={(val: string) => {
+                                const newFilters = { ...filters, uf: val };
+                                setFilters(newFilters);
+                                // Trigger search automatically when UF changes
+                                fetchLeads(newFilters);
+                            }}
+                        />
+                        <AdvancedFiltersTrigger
+                            filters={filters}
+                            setFilters={setFilters}
+                            onSearch={() => fetchLeads(filters)}
+                            onClear={clearFilters}
+                            loading={loading}
+                        />
+                        <div className="w-px h-6 bg-border mx-1 hidden sm:block" />
+                        <Button variant="outline" size="sm" className="h-9 shadow-sm hover:bg-primary/5 transition-all rounded-xl border-primary/10 font-bold text-xs gap-2">
+                            <Download className="h-3.5 w-3.5" />
+                            <span className="hidden sm:inline">Exportar</span>
+                        </Button>
+                    </div>
                 }
-            />
-
-            <LeadsFilter
-                filters={filters}
-                setFilters={setFilters}
-                onSearch={handleSearch}
-                onClear={clearFilters}
-                loading={loading}
             />
 
             <Card className="border-primary/5 shadow-sm">
