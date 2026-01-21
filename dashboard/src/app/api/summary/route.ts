@@ -15,19 +15,23 @@ export async function GET(req: NextRequest) {
             format: 'JSONEachRow'
         }).then(res => res.json() as Promise<{ situacao_cadastral: string, count: string }[]>);
 
-        // 3. & 5. Crescimento Mensal e Histórico (Usando mv_natalidade_mensal)
+        // 3. & 5. Crescimento Mensal e Histórico (Combinando natalidade e mortalidade)
         const historyPromise = clickhouse.query({
             query: `
                 SELECT 
-                    formatDateTime(ano_mes, '%Y-%m') as mes_label,
-                    sum(novos_cnpjs) as novos
-                FROM cnpj_analytics.mv_natalidade_mensal
-                GROUP BY ano_mes
-                ORDER BY ano_mes DESC
-                LIMIT 12
+                    formatDateTime(n.ano_mes, '%Y-%m') as mes_label,
+                    sum(n.novos_cnpjs) as novos,
+                    sum(COALESCE(m.empresas_baixadas, 0)) as baixadas,
+                    sum(n.novos_cnpjs) - sum(COALESCE(m.empresas_baixadas, 0)) as saldo_liquido
+                FROM cnpj_analytics.mv_natalidade_mensal n
+                LEFT JOIN cnpj_analytics.mv_mortalidade_mensal m 
+                    ON n.ano_mes = m.ano_mes
+                GROUP BY n.ano_mes
+                ORDER BY n.ano_mes DESC
+                LIMIT 24
             `,
             format: 'JSONEachRow'
-        }).then(res => res.json() as Promise<{ novos: string, mes_label: string }[]>).catch(e => {
+        }).then(res => res.json() as Promise<{ novos: string, baixadas: string, saldo_liquido: string, mes_label: string }[]>).catch(e => {
             console.error("History Query Error:", e);
             return [];
         });

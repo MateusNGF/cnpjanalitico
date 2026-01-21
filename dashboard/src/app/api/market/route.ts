@@ -90,11 +90,48 @@ export async function GET(req: NextRequest) {
             format: 'JSONEachRow'
         }).then(res => res.json());
 
-        const [densityData, hotSectorsData, natureData, highRiskData] = await Promise.all([
+        // 5. PIB Empresarial Municipal (Ranking por Capital Social)
+        const economicGdpQuery = uf ? `
+            SELECT 
+                est.municipio as codigo,
+                m.descricao as nome,
+                est.uf,
+                SUM(emp.capital_social) as pib_empresarial,
+                COUNT(*) as total_empresas
+            FROM cnpj_analytics.estabelecimentos est
+            JOIN cnpj_analytics.empresas emp ON est.cnpj_basico = emp.cnpj_basico
+            LEFT JOIN cnpj_analytics.dim_municipios m ON est.municipio = m.codigo
+            WHERE est.situacao_cadastral = '02' AND est.uf = '${uf}'
+            GROUP BY est.municipio, m.descricao, est.uf
+            ORDER BY pib_empresarial DESC
+            LIMIT 15
+        ` : `
+            SELECT 
+                est.municipio as codigo,
+                m.descricao as nome,
+                est.uf,
+                SUM(emp.capital_social) as pib_empresarial,
+                COUNT(*) as total_empresas
+            FROM cnpj_analytics.estabelecimentos est
+            JOIN cnpj_analytics.empresas emp ON est.cnpj_basico = emp.cnpj_basico
+            LEFT JOIN cnpj_analytics.dim_municipios m ON est.municipio = m.codigo
+            WHERE est.situacao_cadastral = '02'
+            GROUP BY est.municipio, m.descricao, est.uf
+            ORDER BY pib_empresarial DESC
+            LIMIT 15
+        `;
+
+        const economicGdpPromise = clickhouse.query({
+            query: economicGdpQuery,
+            format: 'JSONEachRow'
+        }).then(res => res.json());
+
+        const [densityData, hotSectorsData, natureData, highRiskData, economicGdpData] = await Promise.all([
             densityPromise as Promise<any[]>,
             hotSectorsPromise as Promise<any[]>,
             naturePromise as Promise<any[]>,
-            highRiskPromise as Promise<any[]>
+            highRiskPromise as Promise<any[]>,
+            economicGdpPromise as Promise<any[]>
         ]);
 
         // Processamento dos Insights
@@ -106,6 +143,7 @@ export async function GET(req: NextRequest) {
             density: densityData,
             hotSectors: hotSectorsData,
             natureDistribution: natureData,
+            economicGdp: economicGdpData,
             insights: {
                 blueOcean: {
                     location: `${topGrowthUF.uf}`,

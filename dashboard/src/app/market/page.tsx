@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { TrendingUp, Map, BarChart3, PieChart, Loader2, AlertTriangle } from "lucide-react"
+import { TrendingUp, Map, BarChart3, PieChart, Loader2, AlertTriangle, Building2 } from "lucide-react"
 import { formatNumber, formatQuantity, formatCNAE, formatNaturezaJuridica } from "@/lib/utils";
 import {
     BarChart,
@@ -25,6 +25,7 @@ interface MarketData {
     density: { uf: string, total: string }[];
     hotSectors: { cnae_fiscal_principal: string, total: string }[];
     natureDistribution: { natureza_juridica: string, total: string }[];
+    economicGdp: { codigo: string, nome: string, uf: string, pib_empresarial: string, total_empresas: string }[];
     insights: {
         blueOcean: { location: string, reason: string };
         hotSector: { name: string, growth: string };
@@ -168,6 +169,66 @@ export default function MarketPage() {
                     </Card>
                 </div>
             </div>
+
+            {/* PIB Empresarial Municipal */}
+            <Card className="border-primary/5 bg-muted/5 backdrop-blur-sm">
+                <CardHeader>
+                    <CardTitle className="text-lg flex items-center gap-2">
+                        <Building2 className="h-5 w-5 text-primary" />
+                        PIB Empresarial por Município
+                    </CardTitle>
+                    <CardDescription>
+                        Ranking de municípios por capital social total - Indicador de força econômica local
+                    </CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <div className="space-y-3">
+                        {(data.economicGdp || []).slice(0, 15).map((city, index) => {
+                            const pib = parseFloat(city.pib_empresarial) || 0;
+                            const empresas = parseInt(city.total_empresas) || 0;
+                            const maxPib = parseFloat(data.economicGdp?.[0]?.pib_empresarial || '1');
+                            const percentage = (pib / maxPib) * 100;
+
+                            return (
+                                <div key={city.codigo} className="group">
+                                    <div className="flex items-center justify-between text-xs mb-1.5">
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-[10px] font-mono text-muted-foreground w-5">#{index + 1}</span>
+                                            <span className="font-semibold group-hover:text-primary transition-colors">
+                                                {city.nome || 'Desconhecido'}
+                                            </span>
+                                            <span className="text-[10px] font-mono text-muted-foreground">{city.uf}</span>
+                                        </div>
+                                        <div className="flex items-center gap-3">
+                                            <span className="text-[10px] text-muted-foreground">
+                                                {formatQuantity(empresas)} empresas
+                                            </span>
+                                            <span className="font-mono font-bold text-primary">
+                                                R$ {formatNumber(pib / 1000000)}M
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <div className="h-1.5 w-full rounded-full bg-secondary overflow-hidden">
+                                        <div
+                                            className="h-full rounded-full transition-all duration-1000 ease-out bg-gradient-to-r from-primary/80 to-primary"
+                                            style={{
+                                                width: `${percentage}%`,
+                                                boxShadow: '0 0 8px var(--primary)'
+                                            }}
+                                        />
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                    {(!data.economicGdp || data.economicGdp.length === 0) && (
+                        <div className="text-center py-12 text-muted-foreground">
+                            <Building2 className="h-12 w-12 mx-auto opacity-20 mb-2" />
+                            <p className="text-sm">Nenhum dado disponível para a região selecionada</p>
+                        </div>
+                    )}
+                </CardContent>
+            </Card>
 
             <div className="grid gap-4 md:grid-cols-2">
                 <Card className="border-primary/5 bg-muted/5 backdrop-blur-sm">

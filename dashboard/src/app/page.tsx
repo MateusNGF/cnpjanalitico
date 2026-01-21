@@ -34,6 +34,8 @@ interface SummaryData {
   growthHistory: {
     mes_label: string;
     novos: string;
+    baixadas: string;
+    saldo_liquido: string;
   }[];
 }
 
@@ -98,7 +100,9 @@ export default function Home() {
 
   const chartData = (data.growthHistory || []).map(h => ({
     name: h.mes_label,
-    novos: parseInt(h.novos) || 0
+    novos: parseInt(h.novos) || 0,
+    baixadas: parseInt(h.baixadas) || 0,
+    saldo_liquido: parseInt(h.saldo_liquido) || 0
   }));
 
   return (
@@ -175,6 +179,72 @@ export default function Home() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Saldo Líquido Chart - Full Width */}
+      <Card className="border-primary/5 backdrop-blur-sm bg-muted/10 shadow-sm">
+        <CardHeader>
+          <CardTitle className="text-lg">Saldo Líquido Empresarial (Demografia)</CardTitle>
+          <CardDescription>
+            Análise comparativa de aberturas, fechamentos e crescimento real nos últimos 24 meses
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="h-[350px] pt-4">
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={chartData}>
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" opacity={0.5} />
+              <XAxis dataKey="name" fontSize={11} tickLine={false} axisLine={false} />
+              <YAxis fontSize={11} tickLine={false} axisLine={false} tickFormatter={(value) => formatNumber(value)} />
+              <Tooltip
+                formatter={(value: number, name: string) => {
+                  const labels: Record<string, string> = {
+                    novos: "Aberturas",
+                    baixadas: "Fechamentos",
+                    saldo_liquido: "Saldo Líquido"
+                  };
+                  return [formatQuantity(value), labels[name] || name];
+                }}
+                contentStyle={{
+                  backgroundColor: 'var(--background)',
+                  border: '1px solid var(--border)',
+                  borderRadius: '8px',
+                  fontSize: '12px',
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+                }}
+              />
+              {/* Linha Verde - Aberturas */}
+              <Line
+                type="monotone"
+                dataKey="novos"
+                stroke="#10b981"
+                strokeWidth={2}
+                name="Aberturas"
+                dot={{ r: 3, fill: '#10b981', strokeWidth: 2, stroke: 'var(--background)' }}
+                activeDot={{ r: 5 }}
+              />
+              {/* Linha Vermelha - Fechamentos */}
+              <Line
+                type="monotone"
+                dataKey="baixadas"
+                stroke="#ef4444"
+                strokeWidth={2}
+                name="Fechamentos"
+                dot={{ r: 3, fill: '#ef4444', strokeWidth: 2, stroke: 'var(--background)' }}
+                activeDot={{ r: 5 }}
+              />
+              {/* Linha Azul - Saldo Líquido */}
+              <Line
+                type="monotone"
+                dataKey="saldo_liquido"
+                stroke="#3b82f6"
+                strokeWidth={3}
+                name="Saldo Líquido"
+                dot={{ r: 4, fill: '#3b82f6', strokeWidth: 2, stroke: 'var(--background)' }}
+                activeDot={{ r: 6 }}
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        </CardContent>
+      </Card>
 
       <div className="grid gap-[var(--section-gap)] grid-cols-1 lg:grid-cols-7">
         <Card className="col-span-1 lg:col-span-4 border-primary/5 backdrop-blur-sm bg-muted/10 shadow-sm">

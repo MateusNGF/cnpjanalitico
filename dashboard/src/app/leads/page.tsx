@@ -36,7 +36,10 @@ export default function LeadsPage() {
         uf: 'TODOS',
         municipio: '',
         situacao: '02',
-        capital_min: ''
+        capital_min: '',
+        capital_max: '',
+        excludeMEI: false,
+        ageRange: ''
     });
 
     const handleOpenDetails = (lead: Lead) => {
@@ -53,6 +56,9 @@ export default function LeadsPage() {
             if (currentFilters.municipio) params.append('municipio', currentFilters.municipio);
             if (currentFilters.situacao !== 'TODOS') params.append('situacao', currentFilters.situacao);
             if (currentFilters.capital_min) params.append('capital_min', currentFilters.capital_min);
+            if (currentFilters.capital_max) params.append('capital_max', currentFilters.capital_max);
+            if (currentFilters.excludeMEI) params.append('excludeMEI', 'true');
+            if (currentFilters.ageRange) params.append('ageRange', currentFilters.ageRange);
 
             const res = await fetch(`/api/leads?${params.toString()}`);
             const data = await res.json();
@@ -81,7 +87,7 @@ export default function LeadsPage() {
     };
 
     const clearFilters = () => {
-        setFilters({ cnae: '', uf: 'TODOS', municipio: '', situacao: '02', capital_min: '' });
+        setFilters({ cnae: '', uf: 'TODOS', municipio: '', situacao: '02', capital_min: '', capital_max: '', excludeMEI: false, ageRange: '' });
     };
 
     const getSituacaoBadge = (code: string) => {

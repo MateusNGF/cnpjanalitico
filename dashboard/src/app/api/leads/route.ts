@@ -11,10 +11,16 @@ const leadsQuerySchema = z.object({
         const parsed = val ? parseFloat(val) : 0;
         return isNaN(parsed) ? 0 : parsed;
     }),
+    capital_max: z.string().optional().transform(val => {
+        const parsed = val ? parseFloat(val) : 0;
+        return isNaN(parsed) ? 0 : parsed;
+    }),
     limit: z.string().optional().transform(val => {
         const parsed = val ? parseInt(val, 10) : 30;
         return isNaN(parsed) ? 30 : parsed;
     }),
+    excludeMEI: z.string().optional().transform(val => val === 'true'),
+    ageRange: z.string().optional(),
 });
 
 export async function GET(req: NextRequest) {
@@ -38,6 +44,7 @@ export async function GET(req: NextRequest) {
         est.situacao_cadastral
       FROM cnpj_analytics.estabelecimentos AS est
       ANY LEFT JOIN cnpj_analytics.empresas AS emp ON est.cnpj_basico = emp.cnpj_basico
+      ${params.excludeMEI ? 'ANY LEFT JOIN cnpj_analytics.simples AS sim ON est.cnpj_basico = sim.cnpj_basico' : ''}
       WHERE 1=1
     `;
 
@@ -66,6 +73,40 @@ export async function GET(req: NextRequest) {
         if (params.capital_min && params.capital_min > 0) {
             query += ` AND emp.capital_social >= {capital_min:Float64}`;
             queryParams.capital_min = params.capital_min;
+        }
+
+        if (params.capital_max && params.capital_max > 0) {
+            query += ` AND emp.capital_social <= {capital_max:Float64}`;
+            queryParams.capital_max = params.capital_max;
+        }
+
+        if (params.excludeMEI) {
+            query += ` AND (sim.opcao_pelo_mei IS NULL OR sim.opcao_pelo_mei != 'S')`;
+        }
+
+        // Age Range Filter
+        if (params.ageRange) {
+            const ageRange = params.ageRange;
+
+            if (ageRange === '0-0.25') {
+                // Less than 90 days
+                query += ` AND dateDiff('day', est.data_inicio_atividade, today()) <= 90`;
+            } else if (ageRange === '0-1') {
+                // Less than 1 year
+                query += ` AND dateDiff('year', est.data_inicio_atividade, today()) < 1`;
+            } else if (ageRange === '1-3') {
+                // 1 to 3 years
+                query += ` AND dateDiff('year', est.data_inicio_atividade, today()) >= 1 AND dateDiff('year', est.data_inicio_atividade, today()) < 3`;
+            } else if (ageRange === '3-5') {
+                // 3 to 5 years
+                query += ` AND dateDiff('year', est.data_inicio_atividade, today()) >= 3 AND dateDiff('year', est.data_inicio_atividade, today()) < 5`;
+            } else if (ageRange === '5+') {
+                // 5+ years
+                query += ` AND dateDiff('year', est.data_inicio_atividade, today()) >= 5`;
+            }
+
+            // Also ensure data_inicio_atividade is not null
+            query += ` AND est.data_inicio_atividade IS NOT NULL`;
         }
 
         query += ` LIMIT {limit:Int32}`;

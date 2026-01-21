@@ -1,14 +1,46 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import { ShieldAlert, Search, Clock, BadgeCheck } from "lucide-react"
-import { formatCNPJ, formatCurrency, formatDate } from "@/lib/utils"
+import { ShieldAlert, Search, Clock, BadgeCheck, Users, Loader2 } from "lucide-react"
+import { formatCNPJ, formatCurrency, formatDate, formatQuantity } from "@/lib/utils"
 import { PageHeader } from "@/components/common/PageHeader";
 import { PageContent } from "@/components/common/PageContent";
 
+interface SerialEntrepreneur {
+    nome_socio: string;
+    total_empresas: string;
+    total_capital_social: string;
+}
+
+interface SerialData {
+    serialEntrepreneurs: SerialEntrepreneur[];
+    stats: {
+        total_serial_entrepreneurs: string;
+        max_empresas_por_socio: string;
+        avg_empresas_por_socio: string;
+    };
+}
+
 export default function CompliancePage() {
+    const [data, setData] = useState<SerialData | null>(null);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        fetch('/api/serial-entrepreneurs?limit=15')
+            .then(res => res.json())
+            .then(json => {
+                setData(json);
+                setLoading(false);
+            })
+            .catch(err => {
+                console.error("Failed to fetch serial entrepreneurs:", err);
+                setLoading(false);
+            });
+    }, []);
+
     return (
         <PageContent>
             <PageHeader
@@ -114,21 +146,58 @@ export default function CompliancePage() {
             </div>
 
             <div className="grid gap-[var(--section-gap)] grid-cols-1 md:grid-cols-2">
-                <Card className="border-red-500/10 bg-red-500/[0.02] shadow-sm">
+                <Card className="border-orange-500/10 bg-orange-500/[0.02] shadow-sm">
                     <CardHeader className="flex flex-row items-center gap-4">
-                        <div className="bg-red-500/10 p-3 rounded-2xl border border-red-500/20">
-                            <ShieldAlert className="h-6 w-6 text-red-500" />
+                        <div className="bg-orange-500/10 p-3 rounded-2xl border border-orange-500/20">
+                            <Users className="h-6 w-6 text-orange-500" />
                         </div>
                         <div>
-                            <CardTitle className="text-lg">Alertas Críticos</CardTitle>
-                            <CardDescription>Inconsistências detectadas na carteira ativa.</CardDescription>
+                            <CardTitle className="text-lg">Empreendedores Seriais</CardTitle>
+                            <CardDescription>Sócios com múltiplas empresas (3+ CNPJs)</CardDescription>
                         </div>
                     </CardHeader>
-                    <CardContent className="h-32 flex items-center justify-center">
-                        <div className="text-center space-y-2 opacity-50">
-                            <BadgeCheck className="h-8 w-8 mx-auto text-muted-foreground/40" />
-                            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground/60">Compliance em Conformidade</p>
-                        </div>
+                    <CardContent>
+                        {loading ? (
+                            <div className="h-64 flex flex-col items-center justify-center gap-3">
+                                <Loader2 className="h-8 w-8 animate-spin text-orange-500 opacity-50" />
+                                <span className="text-xs text-muted-foreground">Carregando dados...</span>
+                            </div>
+                        ) : (
+                            <div className="space-y-2 max-h-64 overflow-y-auto pr-2">
+                                {(data?.serialEntrepreneurs || []).map((person, index) => {
+                                    const empresas = parseInt(person.total_empresas) || 0;
+                                    const capital = parseFloat(person.total_capital_social) || 0;
+
+                                    return (
+                                        <div key={index} className="group p-3 rounded-lg border border-border/50 hover:border-orange-500/30 hover:bg-orange-500/5 transition-all">
+                                            <div className="flex items-start justify-between">
+                                                <div className="flex-1 min-w-0">
+                                                    <p className="text-xs font-bold truncate group-hover:text-orange-500 transition-colors">
+                                                        {person.nome_socio}
+                                                    </p>
+                                                    <div className="flex items-center gap-3 mt-1">
+                                                        <span className="text-[10px] text-muted-foreground">
+                                                            {formatQuantity(empresas)} empresas
+                                                        </span>
+                                                        <span className="text-[10px] font-mono text-muted-foreground">
+                                                            R$ {formatQuantity(capital / 1000000)}M
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                                <div className={`text-[10px] font-black px-2 py-1 rounded ${empresas >= 10
+                                                        ? 'bg-red-500/10 text-red-500'
+                                                        : empresas >= 5
+                                                            ? 'bg-orange-500/10 text-orange-500'
+                                                            : 'bg-yellow-500/10 text-yellow-500'
+                                                    }`}>
+                                                    {empresas >= 10 ? 'ALTO' : empresas >= 5 ? 'MÉDIO' : 'BAIXO'}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
                     </CardContent>
                 </Card>
                 <Card className="border-primary/5 bg-muted/5 shadow-sm overflow-hidden">
