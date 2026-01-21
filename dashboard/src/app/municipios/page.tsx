@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Map, Search, Loader2, Info, Building2, Globe } from "lucide-react"
+import { Map, Search, Loader2, Globe } from "lucide-react"
 import { formatNumber, formatQuantity } from "@/lib/utils";
 import {
     BarChart,
@@ -16,6 +16,7 @@ import {
 } from 'recharts';
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { PageHeader } from "@/components/common/PageHeader";
 
 interface MunicipioData {
     codigo: string;
@@ -60,41 +61,46 @@ export default function MunicipiosPage() {
 
     return (
         <div className="flex flex-col gap-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div>
-                    <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">Municípios</h1>
-                    <p className="text-muted-foreground">Análise de densidade empresarial por cidade e região.</p>
-                </div>
-                <div className="flex gap-2 w-full md:w-auto">
-                    <div className="relative flex-1 md:w-64">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                        <Input
-                            placeholder="Buscar cidade..."
-                            className="pl-10 bg-muted/50 border-primary/10"
-                            value={search}
-                            onChange={(e) => setSearch(e.target.value)}
-                        />
+            <PageHeader
+                title="Municípios"
+                description="Análise estratégica de densidade empresarial e pólos econômicos por cidade e região."
+                icon={<Map className="h-6 w-6" />}
+                breadcrumbs={[
+                    { label: "Exploração", href: "/leads" },
+                    { label: "Municípios" }
+                ]}
+                actions={
+                    <div className="flex items-center gap-2 w-full md:w-auto">
+                        <div className="relative flex-1 md:w-64">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                            <Input
+                                placeholder="Buscar cidade..."
+                                className="pl-10 h-9 bg-muted/50 border-primary/10 shadow-sm focus-visible:ring-primary/20"
+                                value={search}
+                                onChange={(e) => setSearch(e.target.value)}
+                            />
+                        </div>
+                        <Select value={uf} onValueChange={setUf}>
+                            <SelectTrigger className="w-24 h-9 bg-muted/50 border-primary/10 shadow-sm font-bold text-xs uppercase tracking-wider">
+                                <SelectValue placeholder="UF" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all" className="text-xs font-bold uppercase tracking-wider">Todas</SelectItem>
+                                {UFS.map(u => <SelectItem key={u} value={u} className="text-xs font-bold uppercase tracking-wider">{u}</SelectItem>)}
+                            </SelectContent>
+                        </Select>
                     </div>
-                    <Select value={uf} onValueChange={setUf}>
-                        <SelectTrigger className="w-24 bg-muted/50 border-primary/10">
-                            <SelectValue placeholder="UF" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="all">Todas</SelectItem>
-                            {UFS.map(u => <SelectItem key={u} value={u}>{u}</SelectItem>)}
-                        </SelectContent>
-                    </Select>
-                </div>
-            </div>
+                }
+            />
 
             <div className="grid gap-4 md:grid-cols-3">
-                <Card className="col-span-2 border-primary/5 bg-muted/5 backdrop-blur-sm">
+                <Card className="col-span-2 border-primary/5 bg-muted/5 backdrop-blur-sm shadow-sm">
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2">
                             <Map className="h-5 w-5 text-primary" />
                             Distribuição Geográfica
                         </CardTitle>
-                        <CardDescription>Principais pólos econômicos identificados.</CardDescription>
+                        <CardDescription>Principais pólos econômicos identificados na região selecionada.</CardDescription>
                     </CardHeader>
                     <CardContent className="h-[500px] pt-4">
                         {loading ? (
@@ -105,14 +111,15 @@ export default function MunicipiosPage() {
                             <ResponsiveContainer width="100%" height="100%">
                                 <BarChart data={data.slice(0, 15)} margin={{ top: 20, right: 30, left: 0, bottom: 0 }}>
                                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" opacity={0.5} />
-                                    <XAxis dataKey="descricao" fontSize={10} tickLine={false} axisLine={false} />
+                                    <XAxis dataKey="descricao" fontSize={10} tickLine={false} axisLine={false} tickFormatter={(val) => val.length > 12 ? val.substring(0, 10) + '...' : val} />
                                     <YAxis fontSize={11} tickLine={false} axisLine={false} tickFormatter={(value) => formatNumber(value)} />
                                     <RechartsTooltip
                                         formatter={(value: number) => [formatQuantity(value), "Empresas"]}
                                         contentStyle={{
                                             backgroundColor: 'var(--background)',
                                             border: '1px solid var(--border)',
-                                            borderRadius: '8px'
+                                            borderRadius: '8px',
+                                            boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
                                         }}
                                         itemStyle={{ color: 'var(--foreground)' }}
                                     />
@@ -128,28 +135,30 @@ export default function MunicipiosPage() {
                 </Card>
 
                 <div className="flex flex-col gap-4">
-                    <Card className="border-primary/10 bg-gradient-to-br from-primary/5 to-transparent">
+                    <Card className="border-primary/10 bg-gradient-to-br from-primary/5 to-transparent shadow-sm overflow-hidden relative group">
+                        <div className="absolute top-0 right-0 w-24 h-24 bg-primary/5 rounded-full -mr-12 -mt-12 blur-2xl group-hover:bg-primary/10 transition-colors" />
                         <CardHeader className="pb-2">
-                            <CardTitle className="text-sm font-medium flex items-center gap-2">
-                                <Globe className="h-4 w-4 text-primary" />
-                                Visão Regional
+                            <CardTitle className="text-[10px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+                                <Globe className="h-3 w-3 text-primary animate-pulse" />
+                                Monitoramento Regional
                             </CardTitle>
                         </CardHeader>
                         <CardContent>
-                            <div className="text-3xl font-bold tracking-tight">
+                            <div className="text-3xl font-extrabold tracking-tighter bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
                                 {uf === "all" ? "Brasil" : uf}
                             </div>
-                            <p className="text-xs text-muted-foreground mt-1">
-                                {uf === "all" ? "Análise nacional consolidada" : `Dados filtrados para o estado de ${uf}`}
+                            <p className="text-[11px] text-muted-foreground mt-1 leading-relaxed">
+                                {uf === "all" ? "Consolidado nacional de todas as unidades federativas." : `Dados específicos para a geolocalização de ${uf}.`}
                             </p>
                         </CardContent>
                     </Card>
 
-                    <Card className="flex-1 border-primary/5 bg-muted/5 backdrop-blur-sm overflow-hidden flex flex-col">
-                        <CardHeader className="pb-2">
-                            <CardTitle className="text-sm font-medium">Top Cidades</CardTitle>
+                    <Card className="flex-1 border-primary/5 bg-muted/5 backdrop-blur-sm overflow-hidden flex flex-col shadow-sm">
+                        <CardHeader className="pb-4 border-b border-border/50">
+                            <CardTitle className="text-sm font-black uppercase tracking-wider text-primary">Top Cidades</CardTitle>
+                            <CardDescription className="text-[10px]">Rankeamento por volume operacional.</CardDescription>
                         </CardHeader>
-                        <CardContent className="flex-1 overflow-auto p-0 border-t border-border/50">
+                        <CardContent className="flex-1 overflow-auto p-0">
                             {loading ? (
                                 <div className="flex p-8 items-center justify-center">
                                     <Loader2 className="h-4 w-4 animate-spin text-primary opacity-20" />
@@ -157,17 +166,17 @@ export default function MunicipiosPage() {
                             ) : (
                                 <div className="divide-y divide-border/30">
                                     {data.map((item, index) => (
-                                        <div key={item.codigo} className="p-3 hover:bg-muted/30 transition-colors flex items-center justify-between gap-3">
+                                        <div key={item.codigo} className="p-4 hover:bg-primary/[0.02] transition-colors flex items-center justify-between gap-3 group cursor-pointer">
                                             <div className="flex items-center gap-3">
-                                                <span className="text-[10px] font-bold text-muted-foreground w-4">{index + 1}</span>
+                                                <span className="text-[10px] font-black text-muted-foreground/40 w-4 group-hover:text-primary transition-colors">{index + 1}</span>
                                                 <div>
-                                                    <p className="text-xs font-bold text-foreground leading-none">{item.descricao}</p>
-                                                    <p className="text-[10px] text-muted-foreground">{item.uf}</p>
+                                                    <p className="text-[11px] font-extrabold text-foreground leading-none uppercase tracking-tight">{item.descricao}</p>
+                                                    <p className="text-[9px] text-muted-foreground font-mono mt-1 opacity-70">{item.uf} | IBGE {item.codigo}</p>
                                                 </div>
                                             </div>
                                             <div className="text-right">
-                                                <p className="text-xs font-bold text-primary">{formatQuantity(item.total)}</p>
-                                                <p className="text-[9px] text-muted-foreground uppercase">Unidades</p>
+                                                <p className="text-xs font-black text-primary tracking-tighter">{formatQuantity(item.total)}</p>
+                                                <p className="text-[8px] text-muted-foreground font-black uppercase tracking-widest opacity-60">Empresas</p>
                                             </div>
                                         </div>
                                     ))}

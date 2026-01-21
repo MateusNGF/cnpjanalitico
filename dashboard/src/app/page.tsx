@@ -16,6 +16,7 @@ import {
   Line,
   Cell
 } from 'recharts';
+import { PageHeader } from "@/components/common/PageHeader";
 
 interface SummaryData {
   summary: {
@@ -101,13 +102,18 @@ export default function Home() {
 
   return (
     <div className="flex flex-col gap-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">Visão Geral</h1>
-        <p className="text-muted-foreground">Monitoramento e análise demográfica de empresas brasileiras em tempo real.</p>
-      </div>
+      <PageHeader
+        title="Visão Geral"
+        description="Monitoramento estratégico e análise demográfica do ecossistema empresarial brasileiro em tempo real."
+        icon={<Building2 className="h-6 w-6" />}
+        breadcrumbs={[
+          { label: "Dashboard" },
+          { label: "Visão Geral" }
+        ]}
+      />
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card className="relative overflow-hidden border-primary/10 bg-gradient-to-br from-background to-primary/5">
+        <Card className="relative overflow-hidden border-primary/10 bg-gradient-to-br from-background to-primary/5 shadow-sm">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total de Empresas</CardTitle>
             <div className="rounded-full bg-primary/10 p-2">
@@ -118,12 +124,12 @@ export default function Home() {
             <div className="text-3xl font-bold tracking-tighter" title={formatQuantity(data.summary.total)}>{formatNumber(data.summary.total)}</div>
             <p className="text-[10px] text-muted-foreground mt-1 flex items-center gap-1">
               <span className="flex h-1.5 w-1.5 rounded-full bg-blue-500 animate-pulse"></span>
-              Registros na base de dados (RFB)
+              Registros oficiais na base da RFB
             </p>
           </CardContent>
         </Card>
 
-        <Card className="relative overflow-hidden border-green-500/10 bg-gradient-to-br from-background to-green-500/5">
+        <Card className="relative overflow-hidden border-green-500/10 bg-gradient-to-br from-background to-green-500/5 shadow-sm">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Empresas Ativas</CardTitle>
             <div className="rounded-full bg-green-500/10 p-2">
@@ -140,7 +146,7 @@ export default function Home() {
           </CardContent>
         </Card>
 
-        <Card className="relative overflow-hidden border-orange-500/10 bg-gradient-to-br from-background to-orange-500/5">
+        <Card className="relative overflow-hidden border-orange-500/10 bg-gradient-to-br from-background to-orange-500/5 shadow-sm">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Crescimento Mensal</CardTitle>
             <div className="rounded-full bg-orange-500/10 p-2">
@@ -150,12 +156,12 @@ export default function Home() {
           <CardContent>
             <div className="text-3xl font-bold tracking-tighter" title={formatQuantity(data.summary.monthlyGrowth)}>+{formatNumber(data.summary.monthlyGrowth)}</div>
             <p className="text-[10px] text-muted-foreground mt-1">
-              Novos CNPJs em <span className="font-bold uppercase">{data.summary.lastMonth}</span>
+              Novos CNPJs em <span className="font-bold uppercase tracking-wider">{data.summary.lastMonth}</span>
             </p>
           </CardContent>
         </Card>
 
-        <Card className="relative overflow-hidden border-red-500/10 bg-gradient-to-br from-background to-red-500/5">
+        <Card className="relative overflow-hidden border-red-500/10 bg-gradient-to-br from-background to-red-500/5 shadow-sm">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Taxa de Mortalidade</CardTitle>
             <div className="rounded-full bg-red-500/10 p-2">
@@ -170,7 +176,7 @@ export default function Home() {
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-        <Card className="col-span-4 border-primary/5 backdrop-blur-sm bg-muted/10">
+        <Card className="col-span-4 border-primary/5 backdrop-blur-sm bg-muted/10 shadow-sm">
           <CardHeader>
             <CardTitle className="text-lg">Abertura de Empresas por Mês</CardTitle>
             <CardDescription>Visualização histórica de novos registros nos últimos 12 meses.</CardDescription>
@@ -211,7 +217,7 @@ export default function Home() {
           </CardContent>
         </Card>
 
-        <Card className="col-span-3 border-primary/5 backdrop-blur-sm bg-muted/10">
+        <Card className="col-span-3 border-primary/5 backdrop-blur-sm bg-muted/10 shadow-sm">
           <CardHeader>
             <CardTitle className="text-lg">Principais Setores (CNAE)</CardTitle>
             <CardDescription>Atividades com maior volume de registros.</CardDescription>

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { TrendingUp, Map, BarChart3, PieChart, Loader2, AlertTriangle, Info } from "lucide-react"
+import { TrendingUp, Map, BarChart3, PieChart, Loader2, AlertTriangle } from "lucide-react"
 import { formatNumber, formatQuantity, formatCNAE, formatNaturezaJuridica } from "@/lib/utils";
 import {
     BarChart,
@@ -16,12 +16,7 @@ import {
     Pie,
     Cell
 } from 'recharts';
-import {
-    Tooltip,
-    TooltipContent,
-    TooltipProvider,
-    TooltipTrigger,
-} from "@/components/ui/tooltip"
+import { PageHeader } from "@/components/common/PageHeader";
 
 interface MarketData {
     density: { uf: string, total: string }[];
@@ -89,10 +84,15 @@ export default function MarketPage() {
 
     return (
         <div className="flex flex-col gap-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
-            <div>
-                <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">Inteligência de Mercado</h1>
-                <p className="text-muted-foreground">Análise de setores em crescimento e zonas de saturação empresarial.</p>
-            </div>
+            <PageHeader
+                title="Inteligência de Mercado"
+                description="Análise estratégica de densidade empresarial, setores aquecidos e zonas de saturação."
+                icon={<BarChart3 className="h-6 w-6" />}
+                breadcrumbs={[
+                    { label: "Dashboard", href: "/" },
+                    { label: "Inteligência" }
+                ]}
+            />
 
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                 <Card className="col-span-2 border-primary/5 bg-muted/5 backdrop-blur-sm">
@@ -108,7 +108,6 @@ export default function MarketPage() {
                             <BarChart data={(data.density || []).slice(0, 15)} margin={{ top: 20, right: 30, left: 0, bottom: 0 }}>
                                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" opacity={0.5} />
                                 <XAxis dataKey="uf" fontSize={11} tickLine={false} axisLine={false} />
-                                <YAxis fontSize={11} tickLine={false} axisLine={false} tickFormatter={(value) => formatNumber(value)} />
                                 <YAxis fontSize={11} tickLine={false} axisLine={false} tickFormatter={(value) => formatNumber(value)} />
                                 <RechartsTooltip
                                     formatter={(value: number) => [formatQuantity(value), "Empresas"]}

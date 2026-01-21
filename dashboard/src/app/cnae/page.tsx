@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { BarChart3, Search, Loader2, Info, ArrowUpRight } from "lucide-react"
+import { BarChart3, Search, Loader2, ArrowUpRight } from "lucide-react"
 import { formatNumber, formatQuantity, formatCNAE } from "@/lib/utils";
 import {
     BarChart,
@@ -15,6 +15,7 @@ import {
     Cell
 } from 'recharts';
 import { Input } from "@/components/ui/input"
+import { PageHeader } from "@/components/common/PageHeader";
 
 interface CNAEData {
     codigo: string;
@@ -51,24 +52,29 @@ export default function CNAEPage() {
 
     return (
         <div className="flex flex-col gap-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div>
-                    <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">Consulta CNAE</h1>
-                    <p className="text-muted-foreground">Explora as atividades econômicas mais prevalentes e busque por setores específicos.</p>
-                </div>
-                <div className="relative w-full md:w-72">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                        placeholder="Buscar por código ou nome..."
-                        className="pl-10 bg-muted/50 border-primary/10 focus-visible:ring-primary/20"
-                        value={search}
-                        onChange={(e) => setSearch(e.target.value)}
-                    />
-                </div>
-            </div>
+            <PageHeader
+                title="Consulta CNAE"
+                description="Explore as atividades econômicas em escala nacional e identifique nichos de mercado."
+                icon={<BarChart3 className="h-6 w-6" />}
+                breadcrumbs={[
+                    { label: "Exploração", href: "/leads" },
+                    { label: "CNAE" }
+                ]}
+                actions={
+                    <div className="relative w-full md:w-72">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input
+                            placeholder="Buscar código ou nome..."
+                            className="pl-10 h-9 bg-muted/50 border-primary/10 focus-visible:ring-primary/20 shadow-sm"
+                            value={search}
+                            onChange={(e) => setSearch(e.target.value)}
+                        />
+                    </div>
+                }
+            />
 
             <div className="grid gap-4 md:grid-cols-3">
-                <Card className="col-span-2 border-primary/5 bg-muted/5 backdrop-blur-sm">
+                <Card className="col-span-2 border-primary/5 bg-muted/5 backdrop-blur-sm shadow-sm">
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2">
                             <BarChart3 className="h-5 w-5 text-primary" />
@@ -104,7 +110,8 @@ export default function CNAEPage() {
                                             backgroundColor: 'var(--background)',
                                             border: '1px solid var(--border)',
                                             borderRadius: '8px',
-                                            fontSize: '11px'
+                                            fontSize: '11px',
+                                            boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
                                         }}
                                         itemStyle={{ color: 'var(--foreground)' }}
                                     />
@@ -119,10 +126,10 @@ export default function CNAEPage() {
                     </CardContent>
                 </Card>
 
-                <Card className="border-primary/5 bg-muted/5 backdrop-blur-sm overflow-hidden flex flex-col">
+                <Card className="border-primary/5 bg-muted/5 backdrop-blur-sm overflow-hidden flex flex-col shadow-sm">
                     <CardHeader>
-                        <CardTitle className="text-lg">Lista de CNAEs</CardTitle>
-                        <CardDescription>Visualização detalhada por código.</CardDescription>
+                        <CardTitle className="text-lg">Dicionário de Atividades</CardTitle>
+                        <CardDescription>Listagem técnica e volumes ativos.</CardDescription>
                     </CardHeader>
                     <CardContent className="flex-1 overflow-auto p-0 border-t border-border/50">
                         {loading ? (
@@ -132,16 +139,16 @@ export default function CNAEPage() {
                         ) : (
                             <div className="divide-y divide-border/30">
                                 {data.map((item) => (
-                                    <div key={item.codigo} className="p-4 hover:bg-muted/30 transition-colors group">
-                                        <div className="flex justify-between items-start mb-1">
-                                            <span className="text-xs font-mono font-bold text-primary bg-primary/10 px-1.5 py-0.5 rounded">
+                                    <div key={item.codigo} className="p-4 hover:bg-primary/[0.03] transition-colors group cursor-pointer">
+                                        <div className="flex justify-between items-start mb-1.5">
+                                            <span className="text-[10px] font-mono font-bold text-primary bg-primary/10 px-1.5 py-0.5 rounded tracking-tighter">
                                                 {formatCNAE(item.codigo)}
                                             </span>
-                                            <span className="text-xs font-medium text-muted-foreground flex items-center gap-1 group-hover:text-primary transition-colors">
+                                            <span className="text-[10px] font-bold text-muted-foreground flex items-center gap-1 group-hover:text-primary transition-colors">
                                                 {formatQuantity(item.total)} <ArrowUpRight className="h-3 w-3" />
                                             </span>
                                         </div>
-                                        <p className="text-xs text-foreground line-clamp-2 leading-relaxed">
+                                        <p className="text-[11px] font-medium text-foreground/80 line-clamp-2 leading-relaxed uppercase">
                                             {item.descricao}
                                         </p>
                                     </div>
@@ -152,15 +159,17 @@ export default function CNAEPage() {
                 </Card>
             </div>
 
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-                <Card className="bg-gradient-to-br from-primary/5 to-transparent border-primary/10">
+            <div className="grid gap-4 md:grid-cols-4">
+                <Card className="bg-gradient-to-br from-primary/5 to-transparent border-primary/10 shadow-sm">
                     <CardHeader className="pb-2">
-                        <CardTitle className="text-sm font-medium text-muted-foreground">Total Atividades</CardTitle>
+                        <CardTitle className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Volume de Empresas</CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">{data.length > 0 ? formatQuantity(data.reduce((acc, curr) => acc + (curr.total || 0), 0)) : "0"}</div>
+                        <div className="text-3xl font-bold tracking-tighter">
+                            {data.length > 0 ? formatQuantity(data.reduce((acc, curr) => acc + (curr.total || 0), 0)) : "0"}
+                        </div>
                         <p className="text-[10px] text-muted-foreground mt-1 flex items-center gap-1">
-                            <Info className="h-3 w-3" /> Base de empresas consultada
+                            Base nacional consolidada
                         </p>
                     </CardContent>
                 </Card>
