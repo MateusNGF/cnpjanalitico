@@ -131,10 +131,8 @@ export default function LeadsPage() {
 
             <Card className="border-primary/5 shadow-sm">
                 <CardHeader className="flex flex-row items-center justify-between border-b pb-4 mb-4">
-                    <div>
-                        <CardTitle className="text-lg">Empresas Encontradas</CardTitle>
-                        <CardDescription>Visualizando {formatQuantity(leads.length)} leads qualificados.</CardDescription>
-                    </div>
+                    <CardTitle className="text-lg">Empresas Encontradas</CardTitle>
+                    <CardDescription>Visualizando {formatQuantity(leads.length)} leads qualificados.</CardDescription>
                 </CardHeader>
                 <CardContent>
                     <div className="rounded-lg border overflow-x-auto scrollbar-thin scrollbar-thumb-muted-foreground/20">
