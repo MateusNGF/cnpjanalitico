@@ -25,9 +25,9 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <div className="flex h-screen w-full overflow-hidden bg-background text-foreground">
+          <div className="flex h-screen w-full overflow-hidden bg-background text-foreground relative">
             <Sidebar />
-            <main className="flex-1 overflow-auto p-8">
+            <main className="flex-1 overflow-auto">
               {children}
             </main>
           </div>

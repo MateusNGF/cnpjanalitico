@@ -17,6 +17,7 @@ import {
     Cell
 } from 'recharts';
 import { PageHeader } from "@/components/common/PageHeader";
+import { PageContent } from "@/components/common/PageContent";
 import MarketMap from "@/components/geo/MarketMap";
 
 interface MarketData {
@@ -84,7 +85,7 @@ export default function MarketPage() {
     ];
 
     return (
-        <div className="flex flex-col gap-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
+        <PageContent>
             <PageHeader
                 title="Inteligência de Mercado"
                 description="Análise estratégica de densidade empresarial, setores aquecidos e zonas de saturação."
@@ -95,8 +96,10 @@ export default function MarketPage() {
                 ]}
             />
 
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                <MarketMap uf="SP" />
+            <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+                <div className="lg:col-span-2">
+                    <MarketMap uf="MG" />
+                </div>
 
 
                 <div className="flex flex-col gap-4">
@@ -216,6 +219,6 @@ export default function MarketPage() {
                     </CardContent>
                 </Card>
             </div>
-        </div>
+        </PageContent>
     )
 }

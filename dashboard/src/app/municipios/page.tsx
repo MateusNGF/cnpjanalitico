@@ -17,6 +17,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { PageHeader } from "@/components/common/PageHeader";
+import { PageContent } from "@/components/common/PageContent";
 
 interface MunicipioData {
     codigo: string;
@@ -60,7 +61,7 @@ export default function MunicipiosPage() {
     }, [debouncedSearch, uf]);
 
     return (
-        <div className="flex flex-col gap-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
+        <PageContent>
             <PageHeader
                 title="Municípios"
                 description="Análise estratégica de densidade empresarial e pólos econômicos por cidade e região."
@@ -93,8 +94,8 @@ export default function MunicipiosPage() {
                 }
             />
 
-            <div className="grid gap-4 md:grid-cols-3">
-                <Card className="col-span-2 border-primary/5 bg-muted/5 backdrop-blur-sm shadow-sm">
+            <div className="grid gap-[var(--section-gap)] grid-cols-1 lg:grid-cols-3">
+                <Card className="col-span-1 lg:col-span-2 border-primary/5 bg-muted/5 backdrop-blur-sm shadow-sm">
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2">
                             <Map className="h-5 w-5 text-primary" />
@@ -186,6 +187,6 @@ export default function MunicipiosPage() {
                     </Card>
                 </div>
             </div>
-        </div>
+        </PageContent>
     )
 }

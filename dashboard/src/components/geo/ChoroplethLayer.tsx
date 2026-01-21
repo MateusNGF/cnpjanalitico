@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { GeoJSON, Tooltip } from 'react-leaflet';
 import L from 'leaflet';
+import { useTheme } from 'next-themes';
 
 interface ChoroplethLayerProps {
     uf?: string;
@@ -11,6 +12,8 @@ interface ChoroplethLayerProps {
 
 const ChoroplethLayer = ({ uf = 'SP', densityData }: ChoroplethLayerProps) => {
     const [geoJson, setGeoJson] = useState<any>(null);
+    const { theme, resolvedTheme } = useTheme();
+    const currentTheme = theme === 'system' ? resolvedTheme : theme;
 
     useEffect(() => {
         const fetchGeoJson = async () => {
@@ -31,6 +34,15 @@ const ChoroplethLayer = ({ uf = 'SP', densityData }: ChoroplethLayerProps) => {
     }, [uf]);
 
     const getDensityColor = (count: number) => {
+        if (currentTheme === 'dark') {
+            return count > 10000 ? '#7c3aed' :
+                count > 5000 ? '#8b5cf6' :
+                    count > 2000 ? '#a78bfa' :
+                        count > 1000 ? '#c4b5fd' :
+                            count > 500 ? '#ddd6fe' :
+                                count > 100 ? '#ede9fe' :
+                                    '#f5f3ff';
+        }
         return count > 10000 ? '#7f1d1d' :
             count > 5000 ? '#b91c1c' :
                 count > 2000 ? '#dc2626' :

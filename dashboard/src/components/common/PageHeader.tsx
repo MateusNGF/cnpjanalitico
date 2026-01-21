@@ -19,7 +19,7 @@ interface PageHeaderProps {
 
 export function PageHeader({ title, description, breadcrumbs, actions, icon }: PageHeaderProps) {
     return (
-        <div className="flex flex-col gap-4 mb-8 group">
+        <div className="flex flex-col gap-[calc(var(--section-gap)/2)]  group">
             {breadcrumbs && breadcrumbs.length > 0 && (
                 <nav className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">
                     {breadcrumbs.map((crumb, index) => (

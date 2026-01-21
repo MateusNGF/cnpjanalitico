@@ -17,6 +17,7 @@ import {
   Cell
 } from 'recharts';
 import { PageHeader } from "@/components/common/PageHeader";
+import { PageContent } from "@/components/common/PageContent";
 
 interface SummaryData {
   summary: {
@@ -101,7 +102,7 @@ export default function Home() {
   }));
 
   return (
-    <div className="flex flex-col gap-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
+    <PageContent>
       <PageHeader
         title="Visão Geral"
         description="Monitoramento estratégico e análise demográfica do ecossistema empresarial brasileiro em tempo real."
@@ -112,7 +113,7 @@ export default function Home() {
         ]}
       />
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-[var(--section-gap)] grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
         <Card className="relative overflow-hidden border-primary/10 bg-gradient-to-br from-background to-primary/5 shadow-sm">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total de Empresas</CardTitle>
@@ -175,8 +176,8 @@ export default function Home() {
         </Card>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-        <Card className="col-span-4 border-primary/5 backdrop-blur-sm bg-muted/10 shadow-sm">
+      <div className="grid gap-[var(--section-gap)] grid-cols-1 lg:grid-cols-7">
+        <Card className="col-span-1 lg:col-span-4 border-primary/5 backdrop-blur-sm bg-muted/10 shadow-sm">
           <CardHeader>
             <CardTitle className="text-lg">Abertura de Empresas por Mês</CardTitle>
             <CardDescription>Visualização histórica de novos registros nos últimos 12 meses.</CardDescription>
@@ -217,7 +218,7 @@ export default function Home() {
           </CardContent>
         </Card>
 
-        <Card className="col-span-3 border-primary/5 backdrop-blur-sm bg-muted/10 shadow-sm">
+        <Card className="col-span-1 lg:col-span-3 border-primary/5 backdrop-blur-sm bg-muted/10 shadow-sm">
           <CardHeader>
             <CardTitle className="text-lg">Principais Setores (CNAE)</CardTitle>
             <CardDescription>Atividades com maior volume de registros.</CardDescription>
@@ -244,6 +245,6 @@ export default function Home() {
           </CardContent>
         </Card>
       </div>
-    </div>
+    </PageContent>
   )
 }

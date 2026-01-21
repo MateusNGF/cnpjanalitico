@@ -6,10 +6,11 @@ import { Button } from "@/components/ui/button"
 import { ShieldAlert, Search, Clock, BadgeCheck } from "lucide-react"
 import { formatCNPJ, formatCurrency, formatDate } from "@/lib/utils"
 import { PageHeader } from "@/components/common/PageHeader";
+import { PageContent } from "@/components/common/PageContent";
 
 export default function CompliancePage() {
     return (
-        <div className="flex flex-col gap-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
+        <PageContent>
             <PageHeader
                 title="Compliance & Risco"
                 description="Analise a saúde financeira e o histórico de regularidade de seus parceiros comerciais com dados oficiais."
@@ -20,8 +21,8 @@ export default function CompliancePage() {
                 ]}
             />
 
-            <div className="grid gap-6 md:grid-cols-5">
-                <Card className="col-span-3 border-primary/5 bg-muted/5 backdrop-blur-sm shadow-xl shadow-primary/[0.02]">
+            <div className="grid gap-[var(--section-gap)] grid-cols-1 lg:grid-cols-5">
+                <Card className="col-span-1 lg:col-span-3 border-primary/5 bg-muted/5 backdrop-blur-sm shadow-xl shadow-primary/[0.02]">
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2">
                             <Search className="h-5 w-5 text-primary" />
@@ -81,7 +82,7 @@ export default function CompliancePage() {
                     </CardContent>
                 </Card>
 
-                <Card className="col-span-2 border-primary/5 bg-muted/5 backdrop-blur-sm shadow-xl shadow-primary/[0.01]">
+                <Card className="col-span-1 lg:col-span-2 border-primary/5 bg-muted/5 backdrop-blur-sm shadow-xl shadow-primary/[0.01]">
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2">
                             <Clock className="h-5 w-5 text-primary" />
@@ -112,7 +113,7 @@ export default function CompliancePage() {
                 </Card>
             </div>
 
-            <div className="grid gap-6 md:grid-cols-2">
+            <div className="grid gap-[var(--section-gap)] grid-cols-1 md:grid-cols-2">
                 <Card className="border-red-500/10 bg-red-500/[0.02] shadow-sm">
                     <CardHeader className="flex flex-row items-center gap-4">
                         <div className="bg-red-500/10 p-3 rounded-2xl border border-red-500/20">
@@ -154,6 +155,6 @@ export default function CompliancePage() {
                     </CardContent>
                 </Card>
             </div>
-        </div>
+        </PageContent>
     )
 }

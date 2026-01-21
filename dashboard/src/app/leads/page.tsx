@@ -9,6 +9,7 @@ import { formatCNPJ, formatCurrency, formatQuantity } from "@/lib/utils";
 import { LeadDetailsSheet } from "@/components/LeadDetailsSheet";
 import { LeadsFilter, UFS, SITUACOES } from "@/components/LeadsFilter";
 import { PageHeader } from "@/components/common/PageHeader";
+import { PageContent } from "@/components/common/PageContent";
 
 interface Lead {
     cnpj_basico: string;
@@ -92,7 +93,7 @@ export default function LeadsPage() {
     };
 
     return (
-        <div className="flex flex-col gap-8 animate-in fade-in duration-500">
+        <PageContent>
             <PageHeader
                 title="Prospecção B2B"
                 description="Filtre e identifique leads qualificados com base nos dados oficiais da Receita Federal."
@@ -124,8 +125,8 @@ export default function LeadsPage() {
                     </div>
                 </CardHeader>
                 <CardContent>
-                    <div className="rounded-lg border overflow-hidden">
-                        <Table>
+                    <div className="rounded-lg border overflow-x-auto scrollbar-thin scrollbar-thumb-muted-foreground/20">
+                        <Table className="min-w-[800px] md:min-w-full">
                             <TableHeader className="bg-muted/30">
                                 <TableRow className="hover:bg-transparent border-b">
                                     <TableHead className="py-4 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
@@ -227,6 +228,6 @@ export default function LeadsPage() {
                 open={isSheetOpen}
                 onOpenChange={setIsSheetOpen}
             />
-        </div>
+        </PageContent>
     )
 }

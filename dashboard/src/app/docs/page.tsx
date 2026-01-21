@@ -5,10 +5,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
 import { Book, Cog, Database, Globe, ShieldCheck, Zap, Briefcase, TrendingUp } from "lucide-react"
 import { PageHeader } from "@/components/common/PageHeader";
+import { PageContent } from "@/components/common/PageContent";
 
 export default function DocsPage() {
     return (
-        <div className="flex flex-col gap-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
+        <PageContent>
             <PageHeader
                 title="Ajuda & Documentação"
                 description="Entenda os conceitos técnicos e aprenda a extrair o potencial máximo de nossa inteligência de dados."
@@ -176,6 +177,6 @@ export default function DocsPage() {
                     </Card>
                 </TabsContent>
             </Tabs>
-        </div>
+        </PageContent>
     )
 }

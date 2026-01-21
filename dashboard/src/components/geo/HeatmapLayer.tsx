@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 import { useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet.heat';
+import { useTheme } from 'next-themes';
 
 interface HeatmapLayerProps {
     points: { lat: number, lng: number, weight: number }[];
@@ -11,6 +12,8 @@ interface HeatmapLayerProps {
 
 const HeatmapLayer = ({ points }: HeatmapLayerProps) => {
     const map = useMap();
+    const { theme, resolvedTheme } = useTheme();
+    const currentTheme = theme === 'system' ? resolvedTheme : theme;
 
     useEffect(() => {
         if (!map || !points || points.length === 0) return;
@@ -34,7 +37,13 @@ const HeatmapLayer = ({ points }: HeatmapLayerProps) => {
                 blur: 15,
                 maxZoom: 13,
                 max: Math.max(...points.map(p => Number(p.weight))),
-                gradient: {
+                gradient: currentTheme === 'dark' ? {
+                    0.4: '#4f46e5',
+                    0.6: '#7c3aed',
+                    0.7: '#9333ea',
+                    0.8: '#c026d3',
+                    1.0: '#f0abfc'
+                } : {
                     0.2: 'blue',
                     0.4: 'cyan',
                     0.6: 'lime',

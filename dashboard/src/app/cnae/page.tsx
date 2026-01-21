@@ -16,6 +16,7 @@ import {
 } from 'recharts';
 import { Input } from "@/components/ui/input"
 import { PageHeader } from "@/components/common/PageHeader";
+import { PageContent } from "@/components/common/PageContent";
 
 interface CNAEData {
     codigo: string;
@@ -51,7 +52,7 @@ export default function CNAEPage() {
     }, [debouncedSearch]);
 
     return (
-        <div className="flex flex-col gap-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
+        <PageContent>
             <PageHeader
                 title="Consulta CNAE"
                 description="Explore as atividades econômicas em escala nacional e identifique nichos de mercado."
@@ -73,8 +74,8 @@ export default function CNAEPage() {
                 }
             />
 
-            <div className="grid gap-4 md:grid-cols-3">
-                <Card className="col-span-2 border-primary/5 bg-muted/5 backdrop-blur-sm shadow-sm">
+            <div className="grid gap-[var(--section-gap)] grid-cols-1 lg:grid-cols-3">
+                <Card className="col-span-1 lg:col-span-2 border-primary/5 bg-muted/5 backdrop-blur-sm shadow-sm">
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2">
                             <BarChart3 className="h-5 w-5 text-primary" />
@@ -174,6 +175,6 @@ export default function CNAEPage() {
                     </CardContent>
                 </Card>
             </div>
-        </div>
+        </PageContent>
     )
 }
