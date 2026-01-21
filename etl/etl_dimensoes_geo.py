@@ -42,7 +42,7 @@ def main():
         separator=';', has_header=False, encoding='latin1', quote_char='"',
         new_columns=['codigo_rfb', 'descricao']
     ).select([
-        pl.col("codigo_rfb").cast(pl.String).str.zfill(4),
+        pl.col("codigo_rfb").cast(pl.Utf8).str.zfill(4),
         pl.col("descricao")
     ])
 
@@ -82,10 +82,10 @@ def main():
     print("-> Baixando coordenadas (Kelvins)...")
     try:
         df_geo = pl.read_csv(URL_KELVINS_MUN).select([
-            pl.col("codigo_ibge").cast(pl.String),
+            pl.col("codigo_ibge").cast(pl.Utf8),
             pl.col("latitude"),
             pl.col("longitude"),
-            pl.col("codigo_uf").cast(pl.String)
+            pl.col("codigo_uf").cast(pl.Utf8)
         ])
     except Exception as e:
         print(f"ERRO ao baixar Kelvins: {e}")
