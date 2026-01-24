@@ -2,8 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
 import { TrendingUp, Map, BarChart3, PieChart, Loader2, AlertTriangle, Building2 } from "lucide-react"
 import { formatNumber, formatQuantity, formatCNAE, formatNaturezaJuridica } from "@/lib/utils";
+import { Skeleton } from "@/components/ui/skeleton";
+import { ChartSkeleton, ListSkeleton } from "@/components/common/Skeletons";
 import {
     BarChart,
     Bar,
@@ -66,23 +69,65 @@ export default function MarketPage() {
 
     if (loading) {
         return (
-            <div className="flex h-[400px] flex-col items-center justify-center gap-4">
-                <Loader2 className="h-10 w-10 animate-spin text-primary opacity-50" />
-                <span className="text-sm text-muted-foreground animate-pulse">Cruzando dados demográficos...</span>
-            </div>
+            <PageContent>
+                <PageHeader
+                    title="Inteligência de Mercado"
+                    description="Análise estratégica de densidade empresarial, setores aquecidos e zonas de saturação."
+                    icon={<BarChart3 className="h-6 w-6" />}
+                    breadcrumbs={[{ label: "Dashboard", href: "/" }, { label: "Inteligência" }]}
+                    actions={<Skeleton className="h-9 w-48" />}
+                />
+                <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+                    <div className="lg:col-span-2">
+                        <Skeleton className="h-[400px] w-full rounded-xl" />
+                    </div>
+                    <div className="flex flex-col gap-4">
+                        {[1, 2, 3].map(i => (
+                            <Card key={i} className="border-primary/5">
+                                <CardHeader className="pb-2">
+                                    <Skeleton className="h-4 w-24" />
+                                </CardHeader>
+                                <CardContent>
+                                    <Skeleton className="h-8 w-32 mb-2" />
+                                    <Skeleton className="h-3 w-48" />
+                                </CardContent>
+                            </Card>
+                        ))}
+                    </div>
+                </div>
+                <ChartSkeleton />
+                <div className="grid gap-4 md:grid-cols-2">
+                    <ChartSkeleton />
+                    <ChartSkeleton />
+                </div>
+            </PageContent>
         );
     }
 
     if (error || !data) {
         return (
-            <div className="flex h-[400px] flex-col items-center justify-center gap-4">
-                <BarChart3 className="h-12 w-12 text-destructive opacity-50" />
-                <div className="text-center">
-                    <h3 className="text-lg font-bold text-foreground">Insights Indisponíveis</h3>
-                    <p className="text-sm text-muted-foreground">Não foi possível processar as métricas de mercado.</p>
-                </div>
-                <button onClick={() => window.location.reload()} className="text-xs font-bold text-primary hover:underline">Tentar novamente</button>
-            </div>
+            <PageContent>
+                <PageHeader
+                    title="Inteligência de Mercado"
+                    description="Análise estratégica de densidade empresarial, setores aquecidos e zonas de saturação."
+                    icon={<BarChart3 className="h-6 w-6" />}
+                    breadcrumbs={[{ label: "Dashboard", href: "/" }, { label: "Inteligência" }]}
+                />
+                <Card className="flex h-[400px] flex-col items-center justify-center gap-4 border-dashed border-destructive/20 bg-destructive/5">
+                    <BarChart3 className="h-12 w-12 text-destructive opacity-50" />
+                    <div className="text-center">
+                        <h3 className="text-lg font-bold text-foreground">Insights Indisponíveis</h3>
+                        <p className="text-sm text-muted-foreground">Não foi possível processar as métricas de mercado.</p>
+                    </div>
+                    <Button
+                        variant="outline"
+                        onClick={() => window.location.reload()}
+                        className="font-bold border-destructive/20 hover:bg-destructive/10 text-destructive"
+                    >
+                        Tentar novamente
+                    </Button>
+                </Card>
+            </PageContent>
         );
     }
 

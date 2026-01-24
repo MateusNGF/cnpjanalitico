@@ -86,7 +86,7 @@ export function LeadDetailsSheet({ lead, open, onOpenChange }: LeadDetailsSheetP
 
     return (
         <Sheet open={open} onOpenChange={onOpenChange}>
-            <SheetContent className="w-[400px] sm:w-[540px] p-0 overflow-hidden flex flex-col gap-0 border-l border-border/40 shadow-2xl">
+            <SheetContent className="w-full sm:max-w-[540px] p-0 overflow-hidden flex flex-col gap-0 border-l border-border/40 shadow-2xl">
                 {/* Header with Gradient */}
                 <div className="bg-gradient-to-br from-primary/10 via-background to-background border-b p-6 pb-8 relative overflow-hidden">
                     <div className="absolute top-0 right-0 p-8 opacity-5 pointer-events-none">

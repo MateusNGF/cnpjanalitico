@@ -2,8 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
 import { TrendingUp, Users, Building2, AlertTriangle, Loader2 } from "lucide-react"
 import { formatNumber, formatQuantity } from "@/lib/utils";
+import { SummarySkeleton, ChartSkeleton, ListSkeleton } from "@/components/common/Skeletons";
 import {
   BarChart,
   Bar,
@@ -63,23 +65,51 @@ export default function Home() {
 
   if (loading) {
     return (
-      <div className="flex h-[400px] flex-col items-center justify-center gap-4">
-        <Loader2 className="h-10 w-10 animate-spin text-primary opacity-50" />
-        <span className="text-sm text-muted-foreground animate-pulse">Carregando inteligência de mercado...</span>
-      </div>
+      <PageContent>
+        <PageHeader
+          title="Visão Geral"
+          description="Monitoramento estratégico e análise demográfica do ecossistema empresarial brasileiro em tempo real."
+          icon={<Building2 className="h-6 w-6" />}
+          breadcrumbs={[{ label: "Dashboard" }, { label: "Visão Geral" }]}
+        />
+        <SummarySkeleton />
+        <ChartSkeleton />
+        <div className="grid gap-[var(--section-gap)] grid-cols-1 lg:grid-cols-7">
+          <div className="lg:col-span-4">
+            <ChartSkeleton />
+          </div>
+          <div className="lg:col-span-3">
+            <ListSkeleton items={5} />
+          </div>
+        </div>
+      </PageContent>
     );
   }
 
   if (error || !data) {
     return (
-      <div className="flex h-[400px] flex-col items-center justify-center gap-4">
-        <AlertTriangle className="h-12 w-12 text-destructive opacity-50" />
-        <div className="text-center">
-          <h3 className="text-lg font-bold text-foreground">Falha na conexão</h3>
-          <p className="text-sm text-muted-foreground">Não foi possível carregar os dados do ClickHouse.</p>
-        </div>
-        <button onClick={() => window.location.reload()} className="text-xs font-bold text-primary hover:underline">Tentar novamente</button>
-      </div>
+      <PageContent>
+        <PageHeader
+          title="Visão Geral"
+          description="Monitoramento estratégico e análise demográfica do ecossistema empresarial brasileiro em tempo real."
+          icon={<Building2 className="h-6 w-6" />}
+          breadcrumbs={[{ label: "Dashboard" }, { label: "Visão Geral" }]}
+        />
+        <Card className="flex h-[400px] flex-col items-center justify-center gap-4 border-dashed border-destructive/20 bg-destructive/5">
+          <AlertTriangle className="h-12 w-12 text-destructive opacity-50" />
+          <div className="text-center">
+            <h3 className="text-lg font-bold text-foreground">Falha na conexão</h3>
+            <p className="text-sm text-muted-foreground">Não foi possível carregar os dados do ClickHouse.</p>
+          </div>
+          <Button
+            variant="outline"
+            onClick={() => window.location.reload()}
+            className="font-bold border-destructive/20 hover:bg-destructive/10 text-destructive"
+          >
+            Tentar novamente
+          </Button>
+        </Card>
+      </PageContent>
     );
   }
 
@@ -191,9 +221,19 @@ export default function Home() {
         <CardContent className="h-[350px] pt-4">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={chartData}>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" opacity={0.5} />
-              <XAxis dataKey="name" fontSize={11} tickLine={false} axisLine={false} />
-              <YAxis fontSize={11} tickLine={false} axisLine={false} tickFormatter={(value) => formatNumber(value)} />
+              <defs>
+                <linearGradient id="colorNovos" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#10b981" stopOpacity={0.1} />
+                  <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                </linearGradient>
+                <linearGradient id="colorSaldo" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.1} />
+                  <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" opacity={0.3} />
+              <XAxis dataKey="name" fontSize={10} tickLine={false} axisLine={false} tick={{ fill: 'hsl(var(--muted-foreground))' }} />
+              <YAxis fontSize={10} tickLine={false} axisLine={false} tickFormatter={(value) => formatNumber(value)} tick={{ fill: 'hsl(var(--muted-foreground))' }} />
               <Tooltip
                 formatter={(value: number, name: string) => {
                   const labels: Record<string, string> = {
@@ -204,42 +244,40 @@ export default function Home() {
                   return [formatQuantity(value), labels[name] || name];
                 }}
                 contentStyle={{
-                  backgroundColor: 'var(--background)',
+                  backgroundColor: 'rgba(var(--background), 0.8)',
+                  backdropFilter: 'blur(8px)',
                   border: '1px solid var(--border)',
-                  borderRadius: '8px',
+                  borderRadius: '12px',
                   fontSize: '12px',
-                  boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+                  boxShadow: '0 8px 32px rgba(0,0,0,0.1)'
                 }}
               />
-              {/* Linha Verde - Aberturas */}
               <Line
                 type="monotone"
                 dataKey="novos"
                 stroke="#10b981"
                 strokeWidth={2}
                 name="Aberturas"
-                dot={{ r: 3, fill: '#10b981', strokeWidth: 2, stroke: 'var(--background)' }}
-                activeDot={{ r: 5 }}
+                dot={false}
+                activeDot={{ r: 4, strokeWidth: 0 }}
               />
-              {/* Linha Vermelha - Fechamentos */}
               <Line
                 type="monotone"
                 dataKey="baixadas"
                 stroke="#ef4444"
                 strokeWidth={2}
                 name="Fechamentos"
-                dot={{ r: 3, fill: '#ef4444', strokeWidth: 2, stroke: 'var(--background)' }}
-                activeDot={{ r: 5 }}
+                dot={false}
+                activeDot={{ r: 4, strokeWidth: 0 }}
               />
-              {/* Linha Azul - Saldo Líquido */}
               <Line
                 type="monotone"
                 dataKey="saldo_liquido"
                 stroke="#3b82f6"
                 strokeWidth={3}
                 name="Saldo Líquido"
-                dot={{ r: 4, fill: '#3b82f6', strokeWidth: 2, stroke: 'var(--background)' }}
-                activeDot={{ r: 6 }}
+                dot={{ r: 3, fill: '#3b82f6', strokeWidth: 2, stroke: 'var(--background)' }}
+                activeDot={{ r: 6, strokeWidth: 0 }}
               />
             </LineChart>
           </ResponsiveContainer>
@@ -247,41 +285,47 @@ export default function Home() {
       </Card>
 
       <div className="grid gap-[var(--section-gap)] grid-cols-1 lg:grid-cols-7">
-        <Card className="col-span-1 lg:col-span-4 border-primary/5 backdrop-blur-sm bg-muted/10 shadow-sm">
+        <Card className="col-span-1 lg:col-span-4 border-primary/5 backdrop-blur-sm bg-muted/10 shadow-sm overflow-hidden group">
           <CardHeader>
-            <CardTitle className="text-lg">Abertura de Empresas por Mês</CardTitle>
-            <CardDescription>Visualização histórica de novos registros nos últimos 12 meses.</CardDescription>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="text-lg">Abertura de Empresas por Mês</CardTitle>
+                <CardDescription>Volume de novos registros na base da Receita Federal.</CardDescription>
+              </div>
+              <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
+                <TrendingUp className="h-5 w-5" />
+              </div>
+            </div>
           </CardHeader>
-          <CardContent className="h-[300px] pt-4">
+          <CardContent className="h-[300px] pt-4 p-0">
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={chartData}>
+              <LineChart data={chartData} margin={{ top: 20, right: 30, left: 10, bottom: 0 }}>
                 <defs>
-                  <linearGradient id="colorNovos" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="var(--primary)" stopOpacity={0.8} />
+                  <linearGradient id="colorNovosSingle" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="var(--primary)" stopOpacity={0.2} />
                     <stop offset="95%" stopColor="var(--primary)" stopOpacity={0} />
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" opacity={0.5} />
-                <XAxis dataKey="name" fontSize={11} tickLine={false} axisLine={false} />
-                <YAxis fontSize={11} tickLine={false} axisLine={false} tickFormatter={(value) => formatNumber(value)} />
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" opacity={0.3} />
+                <XAxis dataKey="name" fontSize={10} tickLine={false} axisLine={false} tick={{ fill: 'hsl(var(--muted-foreground))' }} />
+                <YAxis fontSize={10} tickLine={false} axisLine={false} tickFormatter={(value) => formatNumber(value)} tick={{ fill: 'hsl(var(--muted-foreground))' }} />
                 <Tooltip
                   formatter={(value: number) => [formatQuantity(value), "Novas Empresas"]}
                   contentStyle={{
                     backgroundColor: 'var(--background)',
                     border: '1px solid var(--border)',
-                    borderRadius: '8px',
-                    fontSize: '12px',
-                    boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+                    borderRadius: '12px',
+                    fontSize: '11px',
+                    boxShadow: '0 8px 32px rgba(0,0,0,0.1)'
                   }}
-                  itemStyle={{ color: 'var(--primary)', fontWeight: 'bold' }}
                 />
                 <Line
-                  type="monotone"
+                  type="stepAfter"
                   dataKey="novos"
                   stroke="var(--primary)"
                   strokeWidth={3}
-                  dot={{ r: 4, fill: 'var(--primary)', strokeWidth: 2, stroke: 'var(--background)' }}
-                  activeDot={{ r: 6, fill: 'var(--primary)', strokeWidth: 2, stroke: 'var(--background)' }}
+                  dot={false}
+                  activeDot={{ r: 5, fill: 'var(--primary)', strokeWidth: 0 }}
                 />
               </LineChart>
             </ResponsiveContainer>

@@ -94,8 +94,8 @@ export default function Sidebar() {
                                             "flex items-center rounded-xl p-2.5 transition-all duration-300 relative group w-full",
                                             (collapsed && !isMobile) ? "justify-center" : "gap-3 px-4",
                                             isActive
-                                                ? "bg-primary/10 text-primary shadow-sm"
-                                                : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+                                                ? "bg-primary/10 text-primary shadow-sm shadow-primary/5 ring-1 ring-primary/20"
+                                                : "text-muted-foreground hover:bg-primary/5 hover:text-primary"
                                         )}
                                     >
                                         <item.icon className={cn(

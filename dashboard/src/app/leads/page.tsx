@@ -10,6 +10,7 @@ import { LeadDetailsSheet } from "@/components/LeadDetailsSheet";
 import { LeadsFilter, UFSelector, AdvancedFiltersTrigger, SITUACOES } from "@/components/LeadsFilter";
 import { PageHeader } from "@/components/common/PageHeader";
 import { PageContent } from "@/components/common/PageContent";
+import { TableSkeleton } from "@/components/common/Skeletons";
 
 interface Lead {
     cnpj_basico: string;
@@ -171,11 +172,8 @@ export default function LeadsPage() {
                             <TableBody>
                                 {loading ? (
                                     <TableRow>
-                                        <TableCell colSpan={5} className="h-48 text-center">
-                                            <div className="flex flex-col items-center gap-2">
-                                                <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                                                <span className="text-sm text-muted-foreground animate-pulse">Consultando ClickHouse...</span>
-                                            </div>
+                                        <TableCell colSpan={5} className="p-0">
+                                            <TableSkeleton rows={10} />
                                         </TableCell>
                                     </TableRow>
                                 ) : leads.length === 0 ? (

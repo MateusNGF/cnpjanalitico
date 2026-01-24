@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { BarChart3, Search, Loader2, ArrowUpRight } from "lucide-react"
 import { formatNumber, formatQuantity, formatCNAE } from "@/lib/utils";
+import { Skeleton } from "@/components/ui/skeleton";
+import { ChartSkeleton, ListSkeleton } from "@/components/common/Skeletons";
 import {
     BarChart,
     Bar,
@@ -85,8 +87,16 @@ export default function CNAEPage() {
                     </CardHeader>
                     <CardContent className="h-[500px] pt-4">
                         {loading ? (
-                            <div className="flex h-full items-center justify-center">
-                                <Loader2 className="h-8 w-8 animate-spin text-primary opacity-20" />
+                            <div className="h-full flex flex-col gap-4">
+                                <div className="h-full flex items-end gap-2">
+                                    {[...Array(15)].map((_, i) => (
+                                        <Skeleton
+                                            key={i}
+                                            className="flex-1"
+                                            style={{ height: `${Math.random() * 60 + 20}%` }}
+                                        />
+                                    ))}
+                                </div>
                             </div>
                         ) : (
                             <ResponsiveContainer width="100%" height="100%">
@@ -134,8 +144,16 @@ export default function CNAEPage() {
                     </CardHeader>
                     <CardContent className="flex-1 overflow-auto p-0 border-t border-border/50">
                         {loading ? (
-                            <div className="flex p-8 items-center justify-center">
-                                <Loader2 className="h-6 w-6 animate-spin text-primary opacity-20" />
+                            <div className="p-4 space-y-4">
+                                {[...Array(8)].map((_, i) => (
+                                    <div key={i} className="space-y-2">
+                                        <div className="flex justify-between">
+                                            <Skeleton className="h-4 w-16" />
+                                            <Skeleton className="h-3 w-12" />
+                                        </div>
+                                        <Skeleton className="h-3 w-full" />
+                                    </div>
+                                ))}
                             </div>
                         ) : (
                             <div className="divide-y divide-border/30">
