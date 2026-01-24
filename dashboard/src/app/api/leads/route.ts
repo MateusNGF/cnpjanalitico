@@ -36,14 +36,22 @@ export async function GET(req: NextRequest) {
         emp.razao_social,
         est.nome_fantasia,
         est.uf,
-        est.municipio,
+        mun.descricao as municipio,
         emp.capital_social,
         est.ddd1,
         est.telefone1,
         est.correio_eletronico,
-        est.situacao_cadastral
+        est.situacao_cadastral,
+        est.data_inicio_atividade,
+        est.cnae_fiscal_principal,
+        est.tipo_logradouro,
+        est.logradouro,
+        est.numero,
+        est.bairro,
+        emp.natureza_juridica
       FROM cnpj_analytics.estabelecimentos AS est
       ANY LEFT JOIN cnpj_analytics.empresas AS emp ON est.cnpj_basico = emp.cnpj_basico
+      ANY LEFT JOIN cnpj_analytics.dim_municipios AS mun ON est.municipio = mun.codigo
       ${params.excludeMEI ? 'ANY LEFT JOIN cnpj_analytics.simples AS sim ON est.cnpj_basico = sim.cnpj_basico' : ''}
       WHERE 1=1
     `;
@@ -66,7 +74,7 @@ export async function GET(req: NextRequest) {
         }
 
         if (params.municipio) {
-            query += ` AND est.municipio LIKE {municipio:String}`;
+            query += ` AND mun.descricao LIKE {municipio:String}`;
             queryParams.municipio = `%${params.municipio.toUpperCase()}%`;
         }
 

@@ -12,9 +12,9 @@ import { Button } from "@/components/ui/button"
 import {
     Building2, MapPin, Phone, Mail, FileText,
     Calendar, DollarSign, Activity, Copy, Check,
-    Globe, Smartphone, CreditCard
+    Globe, Smartphone, CreditCard, ChevronRight
 } from "lucide-react"
-import { formatCNPJ, formatCurrency } from "@/lib/utils"
+import { formatCNPJ, formatCurrency, formatCNAE, formatNaturezaJuridica } from "@/lib/utils"
 
 interface Lead {
     cnpj_basico: string;
@@ -29,6 +29,13 @@ interface Lead {
     telefone1: string | null;
     correio_eletronico: string | null;
     situacao_cadastral: string;
+    data_inicio_atividade: string | null;
+    cnae_fiscal_principal: string | null;
+    tipo_logradouro: string | null;
+    logradouro: string | null;
+    numero: string | null;
+    bairro: string | null;
+    natureza_juridica: string | null;
 }
 
 interface LeadDetailsSheetProps {
@@ -215,18 +222,55 @@ export function LeadDetailsSheet({ lead, open, onOpenChange }: LeadDetailsSheetP
                                     <p className="text-[10px] font-bold text-muted-foreground uppercase mb-0.5">Município / UF</p>
                                     <p className="text-lg font-medium">{lead.municipio} - <span className="text-primary font-bold">{lead.uf}</span></p>
                                 </div>
-                                <div className="grid grid-cols-2 gap-4">
+                                <div className="grid grid-cols-1 gap-4">
                                     <div>
                                         <p className="text-[10px] font-bold text-muted-foreground uppercase mb-0.5">Logradouro</p>
-                                        <p className="text-sm text-foreground/80">-</p>
+                                        <p className="text-sm font-medium text-foreground/80">
+                                            {lead.tipo_logradouro} {lead.logradouro}{lead.numero ? `, ${lead.numero}` : ''}
+                                        </p>
                                     </div>
                                     <div>
                                         <p className="text-[10px] font-bold text-muted-foreground uppercase mb-0.5">Bairro</p>
-                                        <p className="text-sm text-foreground/80">-</p>
+                                        <p className="text-sm text-foreground/80">{lead.bairro || "-"}</p>
                                     </div>
                                 </div>
                             </div>
                         </div>
+                    </section>
+
+                    <Separator />
+
+                    {/* Technical Profile */}
+                    <section className="space-y-3">
+                        <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+                            <span className="bg-primary/10 p-1 rounded-sm"><FileText className="h-3 w-3 text-primary" /></span>
+                            Perfil Técnico
+                        </h3>
+                        <div className="space-y-3">
+                            <div className="p-3 bg-muted/30 border rounded-lg">
+                                <span className="text-[10px] font-medium text-muted-foreground uppercase block mb-1">CNAE Principal</span>
+                                <div className="flex items-center justify-between">
+                                    <span className="text-xs font-bold text-primary">{formatCNAE(lead.cnae_fiscal_principal || "")}</span>
+                                    <ChevronRight className="h-3 w-3 text-muted-foreground opacity-50" />
+                                </div>
+                            </div>
+                            <div className="p-3 bg-muted/30 border rounded-lg">
+                                <span className="text-[10px] font-medium text-muted-foreground uppercase block mb-1">Natureza Jurídica</span>
+                                <span className="text-xs font-medium text-foreground/80">
+                                    {lead.natureza_juridica ? `${lead.natureza_juridica} - ${formatNaturezaJuridica(lead.natureza_juridica)}` : "-"}
+                                </span>
+                            </div>
+                            <div className="p-3 bg-muted/30 border rounded-lg">
+                                <span className="text-[10px] font-medium text-muted-foreground uppercase block mb-1">Início de Atividade</span>
+                                <div className="flex items-center gap-2">
+                                    <Calendar className="h-3.5 w-3.5 text-primary" />
+                                    <span className="text-xs font-bold">
+                                        {lead.data_inicio_atividade ? new Date(lead.data_inicio_atividade).toLocaleDateString('pt-BR') : "-"}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+
                     </section>
 
                 </div>
