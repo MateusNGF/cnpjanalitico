@@ -31,25 +31,41 @@ function MapController({ center, zoom }: { center: [number, number], zoom: numbe
 
 export default function MapClient({ center = [-15.79, -47.88], zoom = 4, onRegionClick, geoJsonData }: MapClientProps) {
 
-    const getColor = (d: number) => {
-        return d > 1000 ? '#1e3a8a' : // blue-900 (High)
-            d > 500 ? '#2563eb' : // blue-600 (Medium)
-                d > 200 ? '#60a5fa' : // blue-400 (Low)
-                    '#bfdbfe';  // blue-200 (Very Low)
+    const getColor = (d: number, max: number) => {
+        const ratio = max > 0 ? d / max : 0;
+        return ratio > 0.8 ? '#1e3a8a' :
+            ratio > 0.5 ? '#2563eb' :
+                ratio > 0.2 ? '#60a5fa' :
+                    ratio > 0.05 ? '#93c5fd' :
+                        '#eff6ff';
     }
 
     const style = (feature: any) => {
+        // Find max density in the whole collection for relative scaling
+        const features = geoJsonData?.features || [];
+        const maxDensity = Math.max(...features.map((f: any) => f.properties.density || 0), 10);
+
         return {
-            fillColor: getColor(feature.properties.density),
+            fillColor: getColor(feature.properties.density, maxDensity),
             weight: 1,
             opacity: 1,
             color: 'white',
             dashArray: '3',
-            fillOpacity: 0.7
+            fillOpacity: 0.8
         };
     }
 
     const onEachFeature = (feature: any, layer: any) => {
+        const density = feature.properties.density || 0;
+        const name = feature.properties.nomemunicipio || feature.properties.name || "Município";
+
+        layer.bindTooltip(`
+            <div class="px-2 py-1">
+                <div class="font-bold text-slate-800">${name}</div>
+                <div class="text-xs text-slate-600">${density.toLocaleString()} empresas ativas</div>
+            </div>
+        `, { sticky: true, className: 'custom-tooltip' });
+
         layer.on({
             mouseover: (e: any) => {
                 const layer = e.target;
@@ -57,7 +73,7 @@ export default function MapClient({ center = [-15.79, -47.88], zoom = 4, onRegio
                     weight: 3,
                     color: '#666',
                     dashArray: '',
-                    fillOpacity: 0.9
+                    fillOpacity: 1
                 });
             },
             mouseout: (e: any) => {
@@ -66,12 +82,12 @@ export default function MapClient({ center = [-15.79, -47.88], zoom = 4, onRegio
                     weight: 1,
                     color: 'white',
                     dashArray: '3',
-                    fillOpacity: 0.7
+                    fillOpacity: 0.8
                 });
             },
             click: (e: any) => {
                 if (onRegionClick) {
-                    onRegionClick(feature.properties.name)
+                    onRegionClick(name)
                 }
             }
         });

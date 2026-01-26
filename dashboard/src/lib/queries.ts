@@ -3,16 +3,16 @@ export const QUERIES = {
   // Consumes MVs: mv_resumo_uf, mv_natalidade_mensal, mv_stats_sobrevivencia
   KPI_CAPITAL_SOCIAL: `
     SELECT 
-        sum(capital_social) as total_market_volume
-    FROM mv_resumo_uf
+        sum(capital_total_setor) as total_market_volume
+    FROM v_concentracao_mercado
     WHERE uf = {uf}
   `,
 
   KPI_NATALIDADE: `
     SELECT 
-        count() as new_companies
+        sum(novos_cnpjs) as new_companies
     FROM mv_natalidade_mensal
-    WHERE uf = {uf} AND mes_referencia >= toStartOfMonth(now())
+    WHERE uf = {uf} AND ano_mes >= toStartOfMonth(now())
   `,
 
   KPI_SURVIVAL_RATE: `
@@ -26,25 +26,25 @@ export const QUERIES = {
   // Real-time aggregation of openings vs closings
   TREND_CHART: `
     SELECT 
-        toStartOfMonth(data_evento) as month,
-        countIf(tipo_evento = 'ABERTURA') as natalidade,
-        countIf(tipo_evento = 'BAIXA') as mortalidade
-    FROM estabelecimentos_eventos
-    WHERE uf = {uf}
-    GROUP BY month
+        n.ano_mes as month,
+        n.novos_cnpjs as natalidade,
+        m.empresas_baixadas as mortalidade
+    FROM mv_natalidade_mensal n
+    LEFT JOIN mv_mortalidade_mensal m ON n.ano_mes = m.ano_mes AND n.uf = m.uf
+    WHERE n.uf = {uf}
     ORDER BY month ASC
+    LIMIT 12
   `,
 
   // 3. Map Distribution (Discovery Engine)
   // Uses pre-calculated density view
   MAP_DENSITY: `
     SELECT 
-        municipio,
-        count() as total_active_companies,
-        sum(capital_social) as density_value
-    FROM mv_resumo_uf
-    WHERE uf = {uf}
-    GROUP BY municipio
+        m.codigo_ibge as id,
+        r.total as value
+    FROM mv_resumo_municipio r
+    JOIN dim_municipios m ON r.municipio = m.codigo
+    WHERE r.uf = {uf}
   `,
 
   // 4. Lead Prospecting (Operational Layer)

@@ -153,6 +153,18 @@ FROM cnpj_analytics.estabelecimentos
 WHERE data_inicio_atividade IS NOT NULL
 GROUP BY uf, ano_mes;
 
+-- MV: Resumo por Município (Densidade para o Mapa)
+CREATE MATERIALIZED VIEW IF NOT EXISTS cnpj_analytics.mv_resumo_municipio 
+ENGINE = SummingMergeTree() 
+ORDER BY (uf, municipio) AS
+SELECT 
+    uf, 
+    municipio, 
+    count() as total
+FROM cnpj_analytics.estabelecimentos
+WHERE situacao_cadastral = '02' -- Apenas Ativas para o Mapa de Calor
+GROUP BY uf, municipio;
+
 -- --------------------------------------------------------
 -- 5. Views de Inteligência de Negócio e Georeferenciamento
 -- --------------------------------------------------------
