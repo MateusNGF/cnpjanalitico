@@ -5,21 +5,33 @@ export const QUERIES = {
     SELECT 
         sum(capital_total_setor) as total_market_volume
     FROM v_concentracao_mercado
-    WHERE uf = {uf}
+    WHERE uf = {uf:String}
   `,
 
   KPI_NATALIDADE: `
     SELECT 
-        sum(novos_cnpjs) as new_companies
-    FROM mv_natalidade_mensal
-    WHERE uf = {uf} AND ano_mes >= toStartOfMonth(now())
+        sum(total) as new_companies
+    FROM mv_resumo_uf
+    WHERE uf = {uf:String} AND situacao_cadastral = '02'
   `,
 
   KPI_SURVIVAL_RATE: `
     SELECT 
         avg(tempo_vida_anos) as survival_index
     FROM mv_stats_sobrevivencia
-    WHERE uf = {uf}
+    WHERE uf = {uf:String}
+  `,
+
+  KPI_TOP_CNAE: `
+    SELECT 
+        c.descricao as label,
+        sum(r.total) as value
+    FROM mv_cnae_ranking r
+    JOIN dim_cnae c ON r.cnae_fiscal_principal = c.codigo
+    WHERE r.uf = {uf:String}
+    GROUP BY label
+    ORDER BY value DESC
+    LIMIT 1
   `,
 
   // 2. Trend Chart (Market Dynamics)
@@ -31,7 +43,7 @@ export const QUERIES = {
         m.empresas_baixadas as mortalidade
     FROM mv_natalidade_mensal n
     LEFT JOIN mv_mortalidade_mensal m ON n.ano_mes = m.ano_mes AND n.uf = m.uf
-    WHERE n.uf = {uf}
+    WHERE n.uf = {uf:String}
     ORDER BY month ASC
     LIMIT 12
   `,
@@ -41,10 +53,13 @@ export const QUERIES = {
   MAP_DENSITY: `
     SELECT 
         m.codigo_ibge as id,
-        r.total as value
-    FROM mv_resumo_municipio r
-    JOIN dim_municipios m ON r.municipio = m.codigo
-    WHERE r.uf = {uf}
+        m.descricao as nome,
+        sum(r.total) as value
+    FROM dim_municipios m
+    JOIN dim_estados e ON m.uf = CAST(e.codigo_uf AS String)
+    LEFT JOIN mv_ranking_bairros r ON r.municipio = m.codigo
+    WHERE e.sigla = {uf:String}
+    GROUP BY m.codigo_ibge, m.descricao
   `,
 
   // 4. Lead Prospecting (Operational Layer)
@@ -63,8 +78,8 @@ export const QUERIES = {
     FROM v_lead_completo l
     JOIN v_segmentacao_mercado s ON l.cnpj_basico = s.cnpj_basico
     WHERE 
-        l.uf = {uf} 
-        AND l.municipio = {municipio}
+        l.uf = {uf:String} 
+        AND l.municipio = {municipio:String}
         AND l.situacao_cadastral = '02' -- Ativa
     LIMIT 100
   `

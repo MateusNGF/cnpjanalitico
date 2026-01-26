@@ -5,9 +5,9 @@ import { z } from "zod"
 
 const querySchema = z.object({
     uf: z.string().default("BR"),
-    municipio: z.string().optional(),
-    cnae: z.string().optional().nullable(),
-    situacao: z.string().optional().nullable(),
+    municipio: z.string().nullable().optional(),
+    cnae: z.string().nullable().optional(),
+    situacao: z.string().nullable().optional(),
 })
 
 export async function GET(req: NextRequest) {
@@ -23,16 +23,18 @@ export async function GET(req: NextRequest) {
         const params = querySchema.parse(rawParams)
 
         // Execute multiple KPI queries in parallel
-        const [capitalResult, natalidadeResult, survivalResult] = await Promise.all([
+        const [capitalResult, natalidadeResult, survivalResult, topCnaeResult] = await Promise.all([
             query<{ total_market_volume: number }>(QUERIES.KPI_CAPITAL_SOCIAL, { uf: params.uf }),
             query<{ new_companies: number }>(QUERIES.KPI_NATALIDADE, { uf: params.uf }),
             query<{ survival_index: number }>(QUERIES.KPI_SURVIVAL_RATE, { uf: params.uf }),
+            query<{ label: string; value: number }>(QUERIES.KPI_TOP_CNAE, { uf: params.uf }),
         ])
 
         return NextResponse.json({
             capital: capitalResult[0]?.total_market_volume || 0,
             natalidade: natalidadeResult[0]?.new_companies || 0,
             survival: survivalResult[0]?.survival_index || 0,
+            topCnae: topCnaeResult[0]?.label || "N/A",
         })
     } catch (error) {
         console.error("Stats API Error:", error)

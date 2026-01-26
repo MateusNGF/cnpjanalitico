@@ -36,22 +36,22 @@ def process_estados(client):
 
     # 1. Busca Bandeiras (JSON)
     print("-> Baixando Bandeiras (Codante)...")
+    df_flags = pl.DataFrame(schema={"sigla": pl.Utf8, "flag_url": pl.Utf8})
     try:
         # Polars lê JSON, mas a API retorna uma lista de objetos.
         # Vamos ler direto da URL.
         import requests
-        resp = requests.get(URL_ESTADOS_FLAGS)
+        resp = requests.get(URL_ESTADOS_FLAGS, timeout=10)
         resp.raise_for_status()
         data_flags = resp.json()
         
-        # Cria DataFrame Polars manual ou via pandas se preferir, mas pl.DataFrame aceita dicts
-        df_flags = pl.DataFrame(data_flags).select([
-            pl.col("uf").alias("sigla"),
-            pl.col("flag_url")
-        ])
+        if data_flags:
+            df_flags = pl.DataFrame(data_flags).select([
+                pl.col("uf").alias("sigla"),
+                pl.col("flag_url")
+            ])
     except Exception as e:
-        print(f"ERRO ao baixar bandeiras: {e}")
-        return
+        print(f"AVISO: Não foi possível baixar bandeiras: {e}. Continuando sem elas.")
 
     # 2. Busca Dados Gerais (CSV Kelvins)
     print("-> Baixando Dados Gerais (Kelvins)...")
@@ -103,14 +103,31 @@ def process_estados(client):
     """)
 
     # Truncate e Insert
+    print("-> Truncando e inserindo...")
     client.command(f"TRUNCATE TABLE {DB_NAME}.dim_estados")
     
-    client.insert(
-        f"{DB_NAME}.dim_estados",
-        data=df_insert.rows(),
-        column_names=df_insert.columns
-    )
-    print("✅ SUCESSO: dim_estados atualizada.")
+    try:
+        # Convertemos para lista de tuplas para garantir compatibilidade com Point
+        # e evitar problemas com listas do Polars no driver pure-python
+        rows_to_insert = [
+            (
+                row[0], # codigo_uf
+                row[1], # nome
+                row[2], # sigla
+                row[3], # flag_url
+                row[4], # regiao
+                tuple(row[5]) # coordenadas (lon, lat)
+            ) for row in df_insert.rows()
+        ]
+
+        client.insert(
+            f"{DB_NAME}.dim_estados",
+            data=rows_to_insert,
+            column_names=df_insert.columns
+        )
+        print("✅ SUCESSO: dim_estados atualizada.")
+    except Exception as e:
+        print(f"❌ ERRO ao inserir dim_estados: {e}")
 
 # =============================================================================
 # PROCESSAMENTO DE MUNICÍPIOS
@@ -205,17 +222,29 @@ def process_municipios(client):
             ADD COLUMN IF NOT EXISTS coordenadas Point
         """)
         
+        print("-> Truncando e inserindo...")
         client.command(f"TRUNCATE TABLE {DB_NAME}.dim_municipios")
         
+        # Convertemos para lista de tuplas para evitar problemas com listas do Polars
+        rows_to_insert = [
+            (
+                row[0], # codigo
+                row[1], # descricao
+                row[2], # codigo_ibge
+                row[3], # uf
+                tuple(row[4]) # coordenadas (lon, lat)
+            ) for row in df_insert.rows()
+        ]
+
         client.insert(
             f"{DB_NAME}.dim_municipios",
-            data=df_insert.rows(),
+            data=rows_to_insert,
             column_names=df_insert.columns
         )
         print("✅ SUCESSO: dim_municipios atualizada.")
 
     except Exception as e:
-        print(f"ERRO ao inserir dim_municipios: {e}")
+        print(f"❌ ERRO ao inserir dim_municipios: {e}")
 
 # =============================================================================
 # MAIN

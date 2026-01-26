@@ -7,7 +7,7 @@ export async function GET(req: NextRequest) {
         const { searchParams } = new URL(req.url)
         const uf = searchParams.get("uf") || "BR"
 
-        const result = await query<{ id: string; value: number }>(
+        const result = await query<{ id: string; nome: string; value: number }>(
             QUERIES.MAP_DENSITY,
             { uf }
         )
