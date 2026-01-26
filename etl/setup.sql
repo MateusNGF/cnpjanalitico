@@ -8,14 +8,15 @@ CREATE DATABASE IF NOT EXISTS cnpj_analytics;
 -- Alterado para MergeTree para permitir consultas flexíveis e persistência em disco
 -- --------------------------------------------------------
 
+-- Tabela de Municípios Otimizada
 CREATE TABLE IF NOT EXISTS cnpj_analytics.dim_municipios (
-    codigo FixedString(4), -- Código IBGE sem dígito verificador usualmente
+    codigo FixedString(4), 
     descricao String,
-    codigo_ibge FixedString(7),  -- Novo: Código IBGE (Para Mapas)
-    uf FixedString(2),           -- Novo: Estado (Facilita filtros)
-    latitude Float64,            -- Novo: Opcional (se disponível)
-    longitude Float64            -- Novo: Opcional (se disponível)
-) ENGINE = MergeTree() ORDER BY codigo;
+    codigo_ibge FixedString(7),
+    uf FixedString(2),
+    coordenadas Point -- Agrupa Lat/Long em um único objeto binário
+) ENGINE = MergeTree() 
+ORDER BY codigo;
 
 CREATE TABLE IF NOT EXISTS cnpj_analytics.dim_cnae (
     codigo String, -- Pode conter caracteres especiais ou ser numérico
@@ -134,7 +135,7 @@ ENGINE = SummingMergeTree()
 ORDER BY (ano_mes) AS
 SELECT 
     -- Transforma para o primeiro dia do mês para agrupar
-    toStartOfMonth(data_inicio_atividade) as ano_mes, 
+    toStartOfMonth(coalesce(data_inicio_atividade, toDate('1900-01-01'))) as ano_mes, 
     count() as novos_cnpjs
 FROM cnpj_analytics.estabelecimentos
 WHERE data_inicio_atividade IS NOT NULL
@@ -214,7 +215,7 @@ CREATE MATERIALIZED VIEW IF NOT EXISTS cnpj_analytics.mv_mortalidade_mensal
 ENGINE = SummingMergeTree()
 ORDER BY (ano_mes, uf) AS
 SELECT 
-    toStartOfMonth(data_situacao_cadastral) as ano_mes,
+    toStartOfMonth(coalesce(data_situacao_cadastral, toDate('1900-01-01'))) as ano_mes,
     uf,
     count() as empresas_baixadas
 FROM cnpj_analytics.estabelecimentos
@@ -239,7 +240,7 @@ GROUP BY nome_socio_hash;
 CREATE VIEW IF NOT EXISTS cnpj_analytics.v_segmentacao_mercado AS
 SELECT 
     e.cnpj_basico,
-    m.uf,
+    e.uf,
     CASE 
         WHEN emp.capital_social > 10000000 THEN 'Corporativo (>10M)'
         WHEN emp.capital_social > 1000000 THEN 'Médio Porte (1M-10M)'
@@ -260,9 +261,9 @@ ORDER BY (uf, faixa_idade) AS
 SELECT
     uf,
     CASE
-        WHEN dateDiff('year', data_inicio_atividade, now()) < 1 THEN '0-1 Ano'
-        WHEN dateDiff('year', data_inicio_atividade, now()) < 3 THEN '1-3 Anos'
-        WHEN dateDiff('year', data_inicio_atividade, now()) < 5 THEN '3-5 Anos'
+        WHEN dateDiff('year', coalesce(data_inicio_atividade, toDate('1900-01-01')), now()) < 1 THEN '0-1 Ano'
+        WHEN dateDiff('year', coalesce(data_inicio_atividade, toDate('1900-01-01')), now()) < 3 THEN '1-3 Anos'
+        WHEN dateDiff('year', coalesce(data_inicio_atividade, toDate('1900-01-01')), now()) < 5 THEN '3-5 Anos'
         ELSE '5+ Anos'
     END as faixa_idade,
     count() as total
@@ -270,3 +271,51 @@ FROM cnpj_analytics.estabelecimentos
 WHERE situacao_cadastral = '02'
 GROUP BY uf, faixa_idade;
 
+
+
+-- A. Índice de Sobrevivência por Setor (Consultoria de Risco)
+-- Para um consultor, saber quanto tempo uma empresa dura em determinado setor e região é vital.
+CREATE MATERIALIZED VIEW IF NOT EXISTS cnpj_analytics.mv_stats_sobrevivencia
+ENGINE = SummingMergeTree()
+ORDER BY (uf, cnae_fiscal_principal, tempo_vida_anos) AS
+SELECT 
+    uf,
+    cnae_fiscal_principal,
+    dateDiff('year', coalesce(data_inicio_atividade, toDate('1900-01-01')), coalesce(data_situacao_cadastral, toDate('1900-01-01'))) as tempo_vida_anos,
+    count() as total_empresas
+FROM cnpj_analytics.estabelecimentos
+WHERE situacao_cadastral = '08' -- Baixadas
+  AND data_inicio_atividade IS NOT NULL 
+  AND data_situacao_cadastral IS NOT NULL
+GROUP BY uf, cnae_fiscal_principal, tempo_vida_anos;
+
+
+
+-- B. Clusterização Geográfica (Ideal para Mapas de Calor)
+-- Em vez de apenas bairros, usar o prefixo do CEP (5 dígitos) permite identificar polos comerciais/industriais com mais precisão no mapa sem sobrecarregar o front-end.
+CREATE MATERIALIZED VIEW IF NOT EXISTS cnpj_analytics.mv_densidade_geografica
+ENGINE = SummingMergeTree()
+ORDER BY (uf, municipio, cep_prefixo, cnae_fiscal_principal) AS
+SELECT 
+    uf,
+    municipio,
+    substring(cep, 1, 5) as cep_prefixo,
+    cnae_fiscal_principal,
+    count() as total
+FROM cnpj_analytics.estabelecimentos
+WHERE situacao_cadastral = '02'
+GROUP BY uf, municipio, cep_prefixo, cnae_fiscal_principal;
+
+-- C. Concentração de Mercado (Market Share Estimado)
+-- Ajuda o empresário a entender se o setor é dominado por grandes empresas ou se é pulverizado.
+CREATE VIEW IF NOT EXISTS cnpj_analytics.v_concentracao_mercado AS
+SELECT 
+    uf,
+    cnae_fiscal_principal,
+    count() as total_unidades,
+    sum(emp.capital_social) as capital_total_setor,
+    avg(emp.capital_social) as ticket_medio_capital
+FROM cnpj_analytics.estabelecimentos e
+JOIN cnpj_analytics.empresas emp ON e.cnpj_basico = emp.cnpj_basico
+WHERE e.situacao_cadastral = '02'
+GROUP BY uf, cnae_fiscal_principal;

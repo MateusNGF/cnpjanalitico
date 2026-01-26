@@ -37,14 +37,19 @@ def main():
         return
     
     print(f"-> Lendo MUNIC local: {os.path.basename(files[0])}")
-    df_rfb_local = pl.read_csv(
-        files[0], 
-        separator=';', has_header=False, encoding='latin1', quote_char='"',
-        new_columns=['codigo_rfb', 'descricao']
-    ).select([
-        pl.col("codigo_rfb").cast(pl.Utf8).str.zfill(4),
-        pl.col("descricao")
-    ])
+    try:
+        df_rfb_local = pl.read_csv(
+            files[0], 
+            separator=';', has_header=False, encoding='latin1', quote_char='"',
+            new_columns=['codigo_rfb', 'descricao'],
+            try_parse_dates=False
+        ).select([
+            pl.col("codigo_rfb").cast(pl.Utf8).str.zfill(4),
+            pl.col("descricao")
+        ])
+    except Exception as e:
+        print(f"ERRO ao ler arquivo MUNIC: {e}")
+        return
 
     # ---------------------------------------------------------
     # 2. Baixa e Trata o Mapeamento Oficial (Gov.br)
@@ -73,7 +78,6 @@ def main():
         
     except Exception as e:
         print(f"ERRO ao baixar do Gov.br: {e}")
-        print("Tentando fallback...")
         return
 
     # ---------------------------------------------------------
@@ -83,8 +87,8 @@ def main():
     try:
         df_geo = pl.read_csv(URL_KELVINS_MUN).select([
             pl.col("codigo_ibge").cast(pl.Utf8),
-            pl.col("latitude"),
-            pl.col("longitude"),
+            pl.col("latitude").cast(pl.Float64),
+            pl.col("longitude").cast(pl.Float64),
             pl.col("codigo_uf").cast(pl.Utf8)
         ])
     except Exception as e:
@@ -102,40 +106,52 @@ def main():
     # Join 2: Resultado + Coordenadas (via código IBGE)
     df_final = df_step1.join(df_geo, on="codigo_ibge", how="left")
 
+    # Preparação final:
+    # - Preencher nulos
+    # - Criar coluna de tupla (Point) para ClickHouse (Longitude, Latitude)
     df_insert = df_final.select([
         pl.col("codigo_rfb").alias("codigo"),
         pl.col("descricao"),
         pl.col("codigo_ibge").fill_null("0000000"),
         pl.col("codigo_uf").alias("uf").fill_null(""),
-        pl.col("latitude").fill_null(0.0),
-        pl.col("longitude").fill_null(0.0)
+        # ClickHouse Point é (x, y) => (Longitude, Latitude)
+        pl.concat_list([
+            pl.col("longitude").fill_null(0.0), 
+            pl.col("latitude").fill_null(0.0)
+        ]).alias("coordenadas")
     ])
 
     # ---------------------------------------------------------
     # 5. Carga no ClickHouse
     # ---------------------------------------------------------
-    client = get_client()
-    
-    print(f"-> Atualizando tabela dim_municipios ({df_insert.height} linhas)...")
-    
-    # Garante estrutura
-    client.command(f"""
-        ALTER TABLE {DB_NAME}.dim_municipios 
-        ADD COLUMN IF NOT EXISTS codigo_ibge FixedString(7),
-        ADD COLUMN IF NOT EXISTS uf String,
-        ADD COLUMN IF NOT EXISTS latitude Float64,
-        ADD COLUMN IF NOT EXISTS longitude Float64
-    """)
-    
-    client.command(f"TRUNCATE TABLE {DB_NAME}.dim_municipios")
-    
-    client.insert(
-        f"{DB_NAME}.dim_municipios",
-        df_insert.rows(),
-        column_names=df_insert.columns
-    )
-    
-    print("✅ SUCESSO! Base atualizada com dados oficiais.")
+    try:
+        client = get_client()
+        
+        print(f"-> Atualizando tabela dim_municipios ({df_insert.height} linhas)...")
+        
+        # Garante estrutura alinhada com setup.sql
+        # Point armazena (x, y)
+        client.command(f"""
+            ALTER TABLE {DB_NAME}.dim_municipios 
+            ADD COLUMN IF NOT EXISTS codigo_ibge FixedString(7),
+            ADD COLUMN IF NOT EXISTS uf FixedString(2),
+            ADD COLUMN IF NOT EXISTS coordenadas Point
+        """)
+        
+        client.command(f"TRUNCATE TABLE {DB_NAME}.dim_municipios")
+        
+        # rows() retorna lista de tuplas/listas. 
+        # A coluna 'coordenadas' será uma lista [lon, lat], que o driver converte para Point.
+        client.insert(
+            f"{DB_NAME}.dim_municipios",
+            data=df_insert.rows(),
+            column_names=df_insert.columns
+        )
+        
+        print("✅ SUCESSO! Base atualizada com dados oficiais e coordenadas (Point).")
+
+    except Exception as e:
+        print(f"ERRO ao inserir no ClickHouse: {e}")
 
 if __name__ == "__main__":
     main()
