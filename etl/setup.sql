@@ -8,6 +8,17 @@ CREATE DATABASE IF NOT EXISTS cnpj_analytics;
 -- Alterado para MergeTree para permitir consultas flexíveis e persistência em disco
 -- --------------------------------------------------------
 
+-- Tabela de Estados
+CREATE TABLE IF NOT EXISTS cnpj_analytics.dim_estados (
+    codigo_uf UInt8,
+    nome String,
+    sigla FixedString(2),
+    flag_url String,
+    regiao String,
+    coordenadas Point -- Centroide do estado
+) ENGINE = MergeTree()
+ORDER BY codigo_uf;
+
 -- Tabela de Municípios Otimizada
 CREATE TABLE IF NOT EXISTS cnpj_analytics.dim_municipios (
     codigo FixedString(4), 
@@ -132,14 +143,15 @@ GROUP BY uf, cnae_fiscal_principal;
 -- MV: Natalidade das Empresas (Novos CNPJs por mês)
 CREATE MATERIALIZED VIEW IF NOT EXISTS cnpj_analytics.mv_natalidade_mensal
 ENGINE = SummingMergeTree()
-ORDER BY (ano_mes) AS
+ORDER BY (uf, ano_mes) AS
 SELECT 
+    uf,
     -- Transforma para o primeiro dia do mês para agrupar
     toStartOfMonth(coalesce(data_inicio_atividade, toDate('1900-01-01'))) as ano_mes, 
     count() as novos_cnpjs
 FROM cnpj_analytics.estabelecimentos
 WHERE data_inicio_atividade IS NOT NULL
-GROUP BY ano_mes;
+GROUP BY uf, ano_mes;
 
 -- --------------------------------------------------------
 -- 5. Views de Inteligência de Negócio e Georeferenciamento

@@ -13,7 +13,7 @@ import {
     getSortedRowModel,
     useReactTable,
 } from "@tanstack/react-table"
-import { ArrowUpDown, ChevronDown, MoreHorizontal } from "lucide-react"
+import { ArrowUpDown, ChevronDown, MoreHorizontal, Mail, Phone, MessageCircle } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -36,63 +36,80 @@ import {
     TableRow,
 } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 
 export type Company = {
     id: string
+    cnpj: string
     razao_social: string
+    nome_fantasia: string
     cnae_descricao: string
+    bairro: string
+    municipio: string
     situacao_cadastral: "Ativa" | "Baixada" | "Inapta" | "Suspensa"
+    porte: "MEI" | "ME" | "EPP" | "DEMAIS"
     capital_social: number
-    idade_anos: number
-    socio_principal: string
 }
 
 const data: Company[] = [
     {
         id: "m5gr84i9",
+        cnpj: "12.345.678/0001-99",
         razao_social: "TECH SOLUTIONS LTDA",
+        nome_fantasia: "TechSol",
         cnae_descricao: "Desenvolvimento de Software",
+        bairro: "Savassi",
+        municipio: "Belo Horizonte",
         situacao_cadastral: "Ativa",
+        porte: "EPP",
         capital_social: 150000,
-        idade_anos: 5,
-        socio_principal: "Carlos Silva",
     },
     {
         id: "3u1re74j",
+        cnpj: "98.765.432/0001-11",
         razao_social: "PADARIA DO JOAO ME",
+        nome_fantasia: "Padaria do João",
         cnae_descricao: "Panificação",
+        bairro: "Centro",
+        municipio: "Divinópolis",
         situacao_cadastral: "Ativa",
+        porte: "ME",
         capital_social: 10000,
-        idade_anos: 12,
-        socio_principal: "João Souza",
     },
     {
         id: "derv1ws0",
+        cnpj: "11.222.333/0001-44",
         razao_social: "CONSULTORIA EMPRESARIAL XYZ",
+        nome_fantasia: "XYZ Consultoria",
         cnae_descricao: "Consultoria em Gestão",
+        bairro: "Lourdes",
+        municipio: "Belo Horizonte",
         situacao_cadastral: "Baixada",
+        porte: "ME",
         capital_social: 50000,
-        idade_anos: 3,
-        socio_principal: "Ana Pereira",
     },
     {
         id: "5k8821d",
+        cnpj: "55.444.333/0001-22",
         razao_social: "LOGISTICA EXPRESS S.A.",
+        nome_fantasia: "LogExpress",
         cnae_descricao: "Transporte Rodoviário",
+        bairro: "Distrito Industrial",
+        municipio: "Betim",
         situacao_cadastral: "Ativa",
+        porte: "DEMAIS",
         capital_social: 2500000,
-        idade_anos: 8,
-        socio_principal: "Roberto Costa",
     },
     {
         id: "bhqecj4p",
+        cnpj: "99.888.777/0001-00",
         razao_social: "MERCADINHO DA ESQUINA",
+        nome_fantasia: "Mercadinho",
         cnae_descricao: "Comércio Varejista",
+        bairro: "Santa Tereza",
+        municipio: "Belo Horizonte",
         situacao_cadastral: "Inapta",
+        porte: "MEI",
         capital_social: 5000,
-        idade_anos: 1,
-        socio_principal: "Maria Oliveira",
     },
 ]
 
@@ -121,17 +138,30 @@ export const columns: ColumnDef<Company>[] = [
     },
     {
         accessorKey: "razao_social",
-        header: "Razão Social / Nome Fantasia",
+        header: "Identificação (Nome / CNPJ)",
         cell: ({ row }) => (
-            <div className="font-medium">{row.getValue("razao_social")}</div>
+            <div>
+                <div className="font-medium">{row.original.nome_fantasia || row.original.razao_social}</div>
+                <div className="text-xs text-muted-foreground">{row.original.cnpj}</div>
+            </div>
         ),
     },
     {
         accessorKey: "cnae_descricao",
-        header: "Setor / CNAE",
+        header: "Atividade Principal",
         cell: ({ row }) => (
             <div className="max-w-[200px] truncate" title={row.getValue("cnae_descricao")}>{row.getValue("cnae_descricao")}</div>
         ),
+    },
+    {
+        accessorKey: "bairro",
+        header: "Localização",
+        cell: ({ row }) => (
+            <div>
+                <div className="font-medium text-xs">{row.getValue("bairro")}</div>
+                <div className="text-[10px] text-muted-foreground">{row.original.municipio}</div>
+            </div>
+        )
     },
     {
         accessorKey: "situacao_cadastral",
@@ -139,57 +169,65 @@ export const columns: ColumnDef<Company>[] = [
         cell: ({ row }) => {
             const status = row.getValue("situacao_cadastral") as string;
             let variant: "default" | "secondary" | "destructive" | "outline" = "outline";
+            let className = "";
 
             switch (status) {
-                case "Ativa": variant = "default"; break; // Using default for green-ish if configured, or just default style
-                case "Baixada": variant = "destructive"; break;
-                case "Inapta": variant = "secondary"; break;
+                case "Ativa":
+                    variant = "default";
+                    className = "bg-emerald-100 text-emerald-800 hover:bg-emerald-100 border-emerald-200";
+                    break;
+                case "Baixada":
+                    variant = "destructive";
+                    className = "bg-red-100 text-red-800 hover:bg-red-100 border-red-200";
+                    break;
+                case "Inapta":
+                case "Suspensa":
+                    variant = "secondary";
+                    className = "bg-amber-100 text-amber-800 hover:bg-amber-100 border-amber-200";
+                    break;
             }
 
-            return <Badge variant={variant}>{status}</Badge>
+            return <Badge variant="outline" className={className}>{status}</Badge>
         },
+    },
+    {
+        accessorKey: "porte",
+        header: "Porte",
+        cell: ({ row }) => (
+            <div className="text-center font-medium text-xs">{row.getValue("porte")}</div>
+        ),
+    },
+    {
+        id: "contact",
+        header: "Contato Rápido",
+        cell: ({ row }) => (
+            <div className="flex items-center gap-2 text-muted-foreground">
+                <Button variant="ghost" size="icon" className="h-8 w-8 text-emerald-600">
+                    <MessageCircle className="h-4 w-4" />
+                </Button>
+                <Button variant="ghost" size="icon" className="h-8 w-8 text-blue-600">
+                    <Mail className="h-4 w-4" />
+                </Button>
+            </div>
+        ),
     },
     {
         accessorKey: "capital_social",
         header: () => <div className="text-right">Capital Social</div>,
         cell: ({ row }) => {
             const amount = parseFloat(row.getValue("capital_social"))
-
-            // Format the amount as a dollar amount
             const formatted = new Intl.NumberFormat("pt-BR", {
                 style: "currency",
                 currency: "BRL",
             }).format(amount)
 
-            return <div className="text-right font-medium text-emerald-600">{formatted}</div>
+            return <div className="text-right font-medium text-xs">{formatted}</div>
         },
-    },
-    {
-        accessorKey: "idade_anos",
-        header: "Idade (Anos)",
-        cell: ({ row }) => (
-            <div className="text-center">{row.getValue("idade_anos")}</div>
-        ),
-    },
-    {
-        accessorKey: "socio_principal",
-        header: "Sócio / Admin",
-        cell: ({ row }) => (
-            <div className="flex items-center gap-2">
-                <Avatar className="h-6 w-6">
-                    <AvatarImage src={`https://api.dicebear.com/7.x/initials/svg?seed=${row.getValue("socio_principal")}`} />
-                    <AvatarFallback>CN</AvatarFallback>
-                </Avatar>
-                <span>{row.getValue("socio_principal")}</span>
-            </div>
-        ),
     },
     {
         id: "actions",
         enableHiding: false,
         cell: ({ row }) => {
-            const payment = row.original
-
             return (
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
@@ -199,15 +237,11 @@ export const columns: ColumnDef<Company>[] = [
                         </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                        <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                        <DropdownMenuItem
-                            onClick={() => navigator.clipboard.writeText(payment.id)}
-                        >
-                            Copy payment ID
-                        </DropdownMenuItem>
+                        <DropdownMenuLabel>Ações</DropdownMenuLabel>
+                        <DropdownMenuItem>Ver Detalhes do CNPJ</DropdownMenuItem>
                         <DropdownMenuSeparator />
-                        <DropdownMenuItem>View customer</DropdownMenuItem>
-                        <DropdownMenuItem>View payment details</DropdownMenuItem>
+                        <DropdownMenuItem>Ver Sócios</DropdownMenuItem>
+                        <DropdownMenuItem>Rastrear Endereço</DropdownMenuItem>
                     </DropdownMenuContent>
                 </DropdownMenu>
             )
@@ -247,7 +281,7 @@ export function CompaniesTable() {
         <div className="w-full">
             <div className="flex items-center py-4">
                 <Input
-                    placeholder="Filtrar por Razão Social..."
+                    placeholder="Buscar por Razão Social..."
                     value={(table.getColumn("razao_social")?.getFilterValue() as string) ?? ""}
                     onChange={(event) =>
                         table.getColumn("razao_social")?.setFilterValue(event.target.value)
@@ -257,7 +291,7 @@ export function CompaniesTable() {
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                         <Button variant="outline" className="ml-auto">
-                            Columns <ChevronDown />
+                            Colunas <ChevronDown />
                         </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
@@ -324,7 +358,7 @@ export function CompaniesTable() {
                                     colSpan={columns.length}
                                     className="h-24 text-center"
                                 >
-                                    No results.
+                                    Nenhum resultado encontrado.
                                 </TableCell>
                             </TableRow>
                         )}
@@ -333,8 +367,8 @@ export function CompaniesTable() {
             </div>
             <div className="flex items-center justify-end space-x-2 py-4">
                 <div className="flex-1 text-sm text-muted-foreground">
-                    {table.getFilteredSelectedRowModel().rows.length} of{" "}
-                    {table.getFilteredRowModel().rows.length} row(s) selected.
+                    {table.getFilteredSelectedRowModel().rows.length} de{" "}
+                    {table.getFilteredRowModel().rows.length} linha(s) selecionada(s).
                 </div>
                 <div className="space-x-2">
                     <Button
@@ -343,7 +377,7 @@ export function CompaniesTable() {
                         onClick={() => table.previousPage()}
                         disabled={!table.getCanPreviousPage()}
                     >
-                        Previous
+                        Anterior
                     </Button>
                     <Button
                         variant="outline"
@@ -351,7 +385,7 @@ export function CompaniesTable() {
                         onClick={() => table.nextPage()}
                         disabled={!table.getCanNextPage()}
                     >
-                        Next
+                        Próxima
                     </Button>
                 </div>
             </div>

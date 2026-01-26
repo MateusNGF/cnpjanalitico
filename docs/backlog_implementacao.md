@@ -6,17 +6,20 @@ Este documento traduz os objetivos estratégicos em tarefas técnicas acionávei
 
 ## 🏗️ 1. Infraestrutura e UI/UX (Prioridade: Alta)
 
-### [UI-001] Implementação de Mapas "Premium Dark"
+### [UI-001] Implementação de Mapas "Premium Dark" [COMPLETADO]
+*   **Status:** ✅ Implementado via camada CartoDB Dark Matter.
 *   **Descrição:** Alterar a camada de tiles do Leaflet para uma versão escura.
 *   **Dados:** `https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png`
 *   **Objetivo:** Eliminar o contraste excessivo entre o mapa claro e o dashboard dark.
 
-### [UI-002] Sistema de Design e Variáveis de Cor (Neon)
-*   **Descrição:** Mapear variáveis CSS para cores de destaque (accent-colors).
-*   **Cores:** `--status-success` (Neon Green), `--status-threat` (Vibrant Red), `--status-info` (Cyan).
+### [UI-002] Sistema de Design e Variáveis de Cor (OKLCH/Neon) [COMPLETADO]
+*   **Status:** ✅ Implementado em `DESIGN_SYSTEM.md` e `tailwind.config.ts`.
+*   **Descrição:** Mapear variáveis CSS para cores de destaque (accent-colors) utilizando o espaço de cor OKLCH para melhor percepção visual.
+*   **Cores:** `--primary-neon`, `--status-success`, `--status-threat`.
 
-### [UI-003] Refinamento de Micro-interações
-*   **Descrição:** Adicionar `framer-motion` em transições de página e estados de hover nos cards de métricas.
+### [UI-003] Refinamento de Micro-interações [COMPLETADO]
+*   **Status:** ✅ Integrado via `framer-motion` em componentes globais e páginas.
+*   **Descrição:** Adicionar transições suaves e estados de hover premium nos cards e elementos interativos.
 
 ---
 
@@ -61,7 +64,8 @@ Este documento traduz os objetivos estratégicos em tarefas técnicas acionávei
 ### [DATA-001] Enriquecimento com Dados IBGE
 *   **Descrição:** Importar tabela de população e renda média por município/estado para permitir cálculos de "Densidade por Habitante".
 
-### [DATA-002] Materialização de Rankings (Performance)
+### [DATA-002] Materialização de Rankings (Performance) [COMPLETADO]
+*   **Status:** ✅ Implementado via `mv_cnae_ranking` e `mv_resumo_uf`.
 *   **Descrição:** Criar `Materialized Views` no ClickHouse para o ranking de CNAEs e Municípios, eliminando a necessidade de `COUNT(*)` em tempo real no dashboard.
 
 ---

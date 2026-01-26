@@ -2,32 +2,61 @@
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Area, AreaChart, CartesianGrid, XAxis, Tooltip, ResponsiveContainer } from "recharts"
+import { useEffect, useState } from "react"
+import { useDashboard } from "@/components/dashboard-context"
+import { format } from "date-fns"
+import { ptBR } from "date-fns/locale"
 
-const data = [
-    { month: "Jan", natalidade: 400, mortalidade: 240 },
-    { month: "Feb", natalidade: 300, mortalidade: 139 },
-    { month: "Mar", natalidade: 200, mortalidade: 980 },
-    { month: "Apr", natalidade: 278, mortalidade: 390 },
-    { month: "May", natalidade: 189, mortalidade: 480 },
-    { month: "Jun", natalidade: 239, mortalidade: 380 },
-    { month: "Jul", natalidade: 349, mortalidade: 430 },
-]
+interface TrendData {
+    month: string
+    natalidade: number
+    mortalidade: number
+}
 
 export function TrendChart() {
+    const { uf } = useDashboard()
+    const [chartData, setChartData] = useState<TrendData[]>([])
+    const [loading, setLoading] = useState(true)
+
+    useEffect(() => {
+        async function fetchTrends() {
+            setLoading(true)
+            try {
+                const response = await fetch(`/api/trends?uf=${uf}`)
+                if (!response.ok) throw new Error("Trends fetch failed")
+                const data = await response.json()
+
+                if (Array.isArray(data)) {
+                    // Format months to shorter versions
+                    const formattedData = data.map((item: TrendData) => ({
+                        ...item,
+                        month: format(new Date(item.month), "MMM", { locale: ptBR })
+                    }))
+
+                    setChartData(formattedData)
+                }
+            } catch (error) {
+                console.error("Failed to fetch trends:", error)
+            } finally {
+                setLoading(false)
+            }
+        }
+        fetchTrends()
+    }, [uf])
+
     return (
         <Card className="col-span-1 md:col-span-3">
             <CardHeader>
                 <div className="flex items-center justify-between">
                     <div>
-                        <CardTitle>Movimentação Cadastral (Natalidade vs Mortalidade)</CardTitle>
+                        <CardTitle>Movimentação Cadastral</CardTitle>
                         <CardDescription>
-                            Abertura e fechamento de empresas nos últimos 7 meses.
+                            Aberturas vs Encerramentos (Mortalidade) ao longo do tempo.
                         </CardDescription>
                     </div>
                     <div className="flex gap-2">
-                        <button className="text-xs bg-secondary px-3 py-1 rounded-md">Last 3 months</button>
-                        <button className="text-xs border px-3 py-1 rounded-md">Last 30 days</button>
-                        <button className="text-xs border px-3 py-1 rounded-md">Last 7 days</button>
+                        <button className="text-xs bg-secondary px-3 py-1 rounded-md font-medium">Trimestre</button>
+                        <button className="text-xs border px-3 py-1 rounded-md hover:bg-muted">Ano</button>
                     </div>
                 </div>
             </CardHeader>
@@ -35,7 +64,7 @@ export function TrendChart() {
                 <div className="h-[300px] w-full">
                     <ResponsiveContainer width="100%" height="100%">
                         <AreaChart
-                            data={data}
+                            data={chartData}
                             margin={{
                                 top: 10,
                                 right: 30,
@@ -80,7 +109,7 @@ export function TrendChart() {
                                 fillOpacity={1}
                                 fill="url(#colorMortalidade)"
                                 strokeWidth={2}
-                                name="Baixas"
+                                name="Encerramentos"
                             />
                         </AreaChart>
                     </ResponsiveContainer>
