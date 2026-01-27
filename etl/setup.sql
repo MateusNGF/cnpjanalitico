@@ -42,7 +42,7 @@ CREATE DICTIONARY IF NOT EXISTS cnpj_analytics.dict_cnae (
     descricao String
 )
 PRIMARY KEY codigo
-SOURCE(CLICKHOUSE(TABLE 'dim_cnae' DB 'cnpj_analytics'))
+SOURCE(CLICKHOUSE(TABLE 'dim_cnae' DB 'cnpj_analytics' USER 'default'))
 LIFETIME(MIN 0 MAX 3600)
 LAYOUT(HASHED());
 
@@ -52,7 +52,7 @@ CREATE DICTIONARY IF NOT EXISTS cnpj_analytics.dict_municipios (
     codigo_ibge String
 )
 PRIMARY KEY codigo
-SOURCE(CLICKHOUSE(TABLE 'dim_municipios' DB 'cnpj_analytics'))
+SOURCE(CLICKHOUSE(TABLE 'dim_municipios' DB 'cnpj_analytics' USER 'default'))
 LIFETIME(MIN 0 MAX 3600)
 LAYOUT(HASHED());
 
