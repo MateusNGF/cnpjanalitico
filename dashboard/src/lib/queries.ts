@@ -34,6 +34,33 @@ export const QUERIES = {
     LIMIT 5
   `,
 
+  KPI_MUNICIPAL_TOP_CNAE: `
+    SELECT 
+        c.descricao as label,
+        sum(r.total) as value
+    FROM mv_cnae_municipio_ranking r
+    JOIN dim_municipios m ON r.municipio = m.codigo AND r.uf = m.uf
+    JOIN dim_cnae c ON r.cnae_fiscal_principal = c.codigo
+    WHERE m.codigo_ibge = {municipio_id:String}
+    GROUP BY label
+    ORDER BY value DESC
+    LIMIT 5
+  `,
+
+  CNAE_SEARCH: `
+    SELECT 
+        c.descricao as label,
+        sum(r.total) as value
+    FROM mv_cnae_municipio_ranking r
+    JOIN dim_municipios m ON r.municipio = m.codigo AND r.uf = m.uf
+    JOIN dim_cnae c ON r.cnae_fiscal_principal = c.codigo
+    WHERE m.codigo_ibge = {municipio_id:String}
+      AND (lower(c.descricao) LIKE {search:String} OR c.codigo LIKE {search:String})
+    GROUP BY label
+    ORDER BY value DESC
+    LIMIT 10
+  `,
+
   // 2. Trend Chart (Market Dynamics)
   // Real-time aggregation of openings vs closings
   TREND_CHART: `
@@ -82,5 +109,14 @@ export const QUERIES = {
         AND l.municipio = {municipio:String}
         AND l.situacao_cadastral = '02' -- Ativa
     LIMIT 100
+  `,
+
+  KPI_SEGMENTACAO_PORTE: `
+    SELECT 
+        porte as label,
+        sum(total) as value
+    FROM mv_segmentacao_porte
+    WHERE uf = {uf:String}
+    GROUP BY label
   `
 }

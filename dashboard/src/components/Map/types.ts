@@ -33,3 +33,21 @@ export interface GeoJSONFeature {
     };
     id?: string;
 }
+
+export interface CnaeRanking {
+    label: string;
+    value: number;
+}
+
+export interface PorteDistribution {
+    label: string;
+    value: number;
+}
+
+export interface StateStats {
+    capital: number;
+    natalidade: number;
+    survival: number;
+    topCnaes: CnaeRanking[];
+    porteDist: PorteDistribution[];
+}

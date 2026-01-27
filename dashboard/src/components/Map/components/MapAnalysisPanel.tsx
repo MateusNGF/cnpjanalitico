@@ -25,12 +25,56 @@ export const MapAnalysisPanel = ({ stats }: MapAnalysisPanelProps) => {
                 <div className="space-y-6">
                     <div className="group transition-all">
                         <p className="text-[10px] text-zinc-500 uppercase font-black tracking-widest mb-1.5 opacity-70">Empresas Ativas no Estado</p>
-                        <div className="flex items-center justify-between">
+                        <div className="flex items-center justify-between mb-4">
                             <p className="text-3xl font-mono font-bold text-white tracking-tighter">
                                 {stats ? (stats.natalidade?.toLocaleString() ?? '0') : '---'}
                             </p>
                             <div className="p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
                                 <TrendingUp className="w-4 h-4 text-emerald-500" />
+                            </div>
+                        </div>
+
+                        {/* Porte Distribution */}
+                        <div className="space-y-4">
+                            <div className="flex h-1.5 w-full bg-white/5 rounded-full overflow-hidden">
+                                {stats?.porteDist?.map((p: any, i: number) => {
+                                    const colors = {
+                                        'MEI': 'bg-blue-500',
+                                        'PEQUENA': 'bg-emerald-500',
+                                        'GRANDE': 'bg-orange-500',
+                                        'OUTROS': 'bg-zinc-700'
+                                    };
+                                    const width = (p.value / stats.natalidade) * 100;
+                                    return (
+                                        <div
+                                            key={i}
+                                            className={`h-full ${colors[p.label as keyof typeof colors] || 'bg-zinc-700'} transition-all`}
+                                            style={{ width: `${width}%` }}
+                                            title={`${p.label}: ${formatNumber(p.value)}`}
+                                        />
+                                    );
+                                })}
+                            </div>
+
+                            <div className="grid grid-cols-3 gap-2">
+                                {['MEI', 'PEQUENA', 'GRANDE'].map(label => {
+                                    const p = stats?.porteDist?.find((d: any) => d.label === label);
+                                    const colors = {
+                                        'MEI': 'text-blue-400',
+                                        'PEQUENA': 'text-emerald-400',
+                                        'GRANDE': 'text-orange-400'
+                                    };
+                                    return (
+                                        <div key={label} className="flex flex-col">
+                                            <span className={`text-[8px] font-black uppercase tracking-widest ${colors[label as keyof typeof colors]}`}>
+                                                {label}
+                                            </span>
+                                            <span className="text-[10px] font-mono font-bold text-white">
+                                                {p ? formatNumber(p.value) : '0'}
+                                            </span>
+                                        </div>
+                                    );
+                                })}
                             </div>
                         </div>
                     </div>

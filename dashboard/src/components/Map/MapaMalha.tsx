@@ -81,6 +81,7 @@ const MapaMalha = () => {
 
             <CityDetailSheet
                 selectedCity={selectedCity}
+                uf={uf}
                 onClose={() => setSelectedCity(null)}
             />
 

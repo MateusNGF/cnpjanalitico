@@ -7,15 +7,16 @@ import {
     SheetDescription,
 } from "@/components/ui/sheet";
 import { HoveredCity } from '../types';
-import { BarChart3, Building2, Users, MapPin, TrendingUp, ShieldCheck, Landmark, Wallet, Coins, Briefcase } from 'lucide-react';
+import { BarChart3, Building2, Users, MapPin, TrendingUp, ShieldCheck, Landmark, Wallet, Coins, Briefcase, Search, Activity } from 'lucide-react';
 import { formatNumber } from "@/lib/utils";
 
 interface CityDetailSheetProps {
     selectedCity: HoveredCity | null;
+    uf: string;
     onClose: () => void;
 }
 
-export const CityDetailSheet = ({ selectedCity, onClose }: CityDetailSheetProps) => {
+export const CityDetailSheet = ({ selectedCity, uf, onClose }: CityDetailSheetProps) => {
     const [ibgeStats, setIbgeStats] = useState<{
         population: number;
         pib: number;
@@ -23,11 +24,16 @@ export const CityDetailSheet = ({ selectedCity, onClose }: CityDetailSheetProps)
         formal_jobs: number;
         avg_salary: number;
     } | null>(null);
+    const [cnaes, setCnaes] = useState<{ label: string; value: number }[]>([]);
+    const [searchTerm, setSearchTerm] = useState('');
     const [loading, setLoading] = useState(false);
+    const [loadingCnaes, setLoadingCnaes] = useState(false);
 
     useEffect(() => {
         if (!selectedCity) {
             setIbgeStats(null);
+            setCnaes([]);
+            setSearchTerm('');
             return;
         }
 
@@ -40,7 +46,39 @@ export const CityDetailSheet = ({ selectedCity, onClose }: CityDetailSheetProps)
             })
             .catch(err => console.error("IBGE Fetch Error:", err))
             .finally(() => setLoading(false));
-    }, [selectedCity?.codigo]);
+
+        // Fetch Top CNAEs for city
+        setLoadingCnaes(true);
+        fetch(`/api/stats?uf=${uf}&municipio_id=${selectedCity.codigo}`)
+            .then(res => res.json())
+            .then(data => setCnaes(data.topCnaes || []))
+            .catch(err => console.error("CNAE Fetch Error:", err))
+            .finally(() => setLoadingCnaes(false));
+
+    }, [selectedCity?.codigo, selectedCity?.nome, uf]);
+
+    // Handle Search
+    useEffect(() => {
+        if (!searchTerm || !selectedCity) {
+            if (selectedCity) {
+                // Re-fetch top 5 if search cleared
+                fetch(`/api/stats?uf=${uf}&municipio_id=${selectedCity.codigo}`)
+                    .then(res => res.json())
+                    .then(data => setCnaes(data.topCnaes || []));
+            }
+            return;
+        }
+
+        const delay = setTimeout(() => {
+            setLoadingCnaes(true);
+            fetch(`/api/stats?uf=${uf}&municipio_id=${selectedCity.codigo}&search=${searchTerm}`)
+                .then(res => res.json())
+                .then(data => setCnaes(data.topCnaes || []))
+                .finally(() => setLoadingCnaes(false));
+        }, 500);
+
+        return () => clearTimeout(delay);
+    }, [searchTerm, selectedCity?.nome, uf]);
 
     const formatCurrency = (val: number) => {
         return new Intl.NumberFormat('pt-BR', {
@@ -159,14 +197,54 @@ export const CityDetailSheet = ({ selectedCity, onClose }: CityDetailSheetProps)
                                 </div>
                             </div>
 
-                            {/* Placeholder for deeper insights */}
-                            <div className="p-8 border border-dashed border-white/10 rounded-3xl flex flex-col items-center justify-center text-center space-y-4 bg-zinc-900/30">
-                                <div className="w-12 h-12 rounded-full bg-blue-500/10 flex items-center justify-center animate-pulse">
-                                    <BarChart3 className="w-6 h-6 text-blue-500" />
+                            {/* Section: Sector Analysis */}
+                            <div className="space-y-6">
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-1 h-4 bg-blue-500 rounded-full shadow-[0_0_8px_rgba(59,130,246,0.5)]"></div>
+                                        <h4 className="text-sm font-black uppercase italic tracking-tighter text-zinc-300">Inteligência Setorial</h4>
+                                    </div>
+                                    <span className="text-[10px] font-mono text-zinc-500 uppercase">{searchTerm ? 'Resultados' : 'Top 5 Setores'}</span>
                                 </div>
-                                <div className="space-y-1">
-                                    <p className="text-sm font-bold text-white tracking-tight">Análise Setorial por Bairro</p>
-                                    <p className="text-[10px] text-zinc-500 max-w-[220px]">Estamos conectando as fontes de dados para liberar a visão detalhada de bairros e logradouros.</p>
+
+                                {/* Search Bar */}
+                                <div className="relative group">
+                                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500 group-focus-within:text-blue-400 transition-colors" />
+                                    <input
+                                        type="text"
+                                        placeholder="Buscar CNAE ou setor..."
+                                        value={searchTerm}
+                                        onChange={(e) => setSearchTerm(e.target.value)}
+                                        className="w-full bg-white/5 border border-white/10 rounded-2xl py-3 pl-11 pr-4 text-sm placeholder:text-zinc-600 focus:outline-none focus:border-blue-500/50 focus:bg-white/10 transition-all font-medium"
+                                    />
+                                </div>
+
+                                {/* CNAE List */}
+                                <div className="space-y-2">
+                                    {loadingCnaes ? (
+                                        [1, 2, 3].map(i => (
+                                            <div key={i} className="h-14 bg-white/5 rounded-2xl animate-pulse"></div>
+                                        ))
+                                    ) : cnaes.length > 0 ? (
+                                        cnaes.map((cnae, i) => (
+                                            <div key={i} className="p-4 rounded-2xl bg-white/5 border border-white/5 hover:bg-white/10 transition-all flex items-center justify-between group">
+                                                <div className="flex items-center gap-3 max-w-[70%]">
+                                                    <div className="w-8 h-8 rounded-lg bg-zinc-800 flex items-center justify-center shrink-0">
+                                                        <Activity className="w-4 h-4 text-zinc-500 group-hover:text-blue-400 transition-colors" />
+                                                    </div>
+                                                    <span className="text-xs font-bold text-zinc-300 truncate">{cnae.label}</span>
+                                                </div>
+                                                <div className="text-right">
+                                                    <span className="text-xs font-black text-white">{formatNumber(cnae.value)}</span>
+                                                    <p className="text-[9px] text-zinc-500 uppercase font-black tracking-widest">Unidades</p>
+                                                </div>
+                                            </div>
+                                        ))
+                                    ) : (
+                                        <div className="py-8 text-center bg-white/5 rounded-2xl border border-dashed border-white/10">
+                                            <p className="text-xs text-zinc-500 font-medium">Nenhum setor encontrado.</p>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         </div>
