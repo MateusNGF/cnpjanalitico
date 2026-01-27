@@ -249,7 +249,15 @@ export const columns: ColumnDef<Company>[] = [
     },
 ]
 
+import { useFilterStore } from "@/store/use-filter-store"
+import { useDataStore } from "@/store/use-data-store"
+import { useEffect } from "react"
+
 export function CompaniesTable() {
+    const filters = useFilterStore()
+    const { data: leads, loading } = useDataStore(s => s.leads)
+    const fetchLeads = useDataStore(s => s.fetchLeads)
+
     const [sorting, setSorting] = React.useState<SortingState>([])
     const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
         []
@@ -258,8 +266,14 @@ export function CompaniesTable() {
         React.useState<VisibilityState>({})
     const [rowSelection, setRowSelection] = React.useState({})
 
+    useEffect(() => {
+        fetchLeads(filters)
+    }, [filters, fetchLeads])
+
+    const tableData = React.useMemo(() => leads || [], [leads])
+
     const table = useReactTable({
-        data,
+        data: tableData,
         columns,
         onSortingChange: setSorting,
         onColumnFiltersChange: setColumnFilters,

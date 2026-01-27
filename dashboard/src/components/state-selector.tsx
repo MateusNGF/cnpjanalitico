@@ -18,7 +18,7 @@ import {
     PopoverTrigger,
 } from "@/components/ui/popover"
 import { Badge } from "@/components/ui/badge"
-import { useDashboard } from "@/components/dashboard-context"
+import { useFilterStore } from "@/store/use-filter-store"
 
 const states = [
     { value: "BR", label: "Brasil (Geral)", flag: "🇧🇷" },
@@ -53,7 +53,7 @@ const states = [
 
 export function StateSelector() {
     const [open, setOpen] = React.useState(false)
-    const { uf, setUf } = useDashboard()
+    const { uf, setUf } = useFilterStore()
 
     return (
         <Popover open={open} onOpenChange={setOpen}>

@@ -2,8 +2,9 @@
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Area, AreaChart, CartesianGrid, XAxis, Tooltip, ResponsiveContainer } from "recharts"
-import { useEffect, useState } from "react"
-import { useDashboard } from "@/components/dashboard-context"
+import { useEffect, useMemo } from "react"
+import { useFilterStore } from "@/store/use-filter-store"
+import { useDataStore } from "@/store/use-data-store"
 import { format } from "date-fns"
 import { ptBR } from "date-fns/locale"
 
@@ -14,35 +15,21 @@ interface TrendData {
 }
 
 export function TrendChart() {
-    const { uf } = useDashboard()
-    const [chartData, setChartData] = useState<TrendData[]>([])
-    const [loading, setLoading] = useState(true)
+    const uf = useFilterStore(s => s.uf)
+    const { data, loading } = useDataStore(s => s.trends)
+    const fetchTrends = useDataStore(s => s.fetchTrends)
 
     useEffect(() => {
-        async function fetchTrends() {
-            setLoading(true)
-            try {
-                const response = await fetch(`/api/trends?uf=${uf}`)
-                if (!response.ok) throw new Error("Trends fetch failed")
-                const data = await response.json()
+        fetchTrends({ uf })
+    }, [uf, fetchTrends])
 
-                if (Array.isArray(data)) {
-                    // Format months to shorter versions
-                    const formattedData = data.map((item: TrendData) => ({
-                        ...item,
-                        month: format(new Date(item.month), "MMM", { locale: ptBR })
-                    }))
-
-                    setChartData(formattedData)
-                }
-            } catch (error) {
-                console.error("Failed to fetch trends:", error)
-            } finally {
-                setLoading(false)
-            }
-        }
-        fetchTrends()
-    }, [uf])
+    const chartData = useMemo(() => {
+        if (!data) return []
+        return data.map((item: TrendData) => ({
+            ...item,
+            month: format(new Date(item.month), "MMM", { locale: ptBR })
+        }))
+    }, [data])
 
     return (
         <Card className="col-span-1 md:col-span-3">

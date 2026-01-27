@@ -8,11 +8,11 @@ import {
     SheetTitle,
 } from "@/components/ui/sheet"
 import { CompaniesTable } from "@/components/companies-table"
-import { useDashboard } from "@/components/dashboard-context"
+import { useFilterStore } from "@/store/use-filter-store"
 import { useEffect, useState } from "react"
 
 export function LeadDrawer() {
-    const { city, setCity } = useDashboard()
+    const { city, setCity } = useFilterStore()
     const [open, setOpen] = useState(false)
 
     // Open drawer when city is selected

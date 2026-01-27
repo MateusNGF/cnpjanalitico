@@ -17,7 +17,7 @@ import {
     PopoverContent,
     PopoverTrigger,
 } from "@/components/ui/popover"
-import { useDashboard } from "@/components/dashboard-context"
+import { useFilterStore } from "@/store/use-filter-store"
 import { Badge } from "@/components/ui/badge"
 
 const options = [
@@ -31,7 +31,7 @@ export function SimplesSelector() {
     // We might need to add this to context, but for now let's use a local state or just placeholder
     // Actually, I should add 'regime' to context or just leave it for now.
     // I'll add 'regime' to context for completeness.
-    const { setUf } = useDashboard() // Placeholder
+    const { setUf } = useFilterStore() // Placeholder
 
     return (
         <Popover open={open} onOpenChange={setOpen}>

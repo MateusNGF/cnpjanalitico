@@ -46,53 +46,8 @@ const data = {
                     url: "/dashboard",
                 },
                 {
-                    title: "Mapas de Calor (Geo)",
-                    url: "/dashboard/geo",
-                },
-            ],
-        },
-        {
-            title: "Inteligência",
-            url: "#",
-            icon: TrendingUp,
-            items: [
-                {
-                    title: "Tendências de Mercado",
-                    url: "/dashboard/trends",
-                },
-                {
-                    title: "Comparativo (Em Breve)",
-                    url: "#",
-                },
-            ],
-        },
-        {
-            title: "Prospecção",
-            url: "#",
-            icon: Users,
-            items: [
-                {
-                    title: "Gerador de Leads",
-                    url: "/dashboard/leads",
-                },
-                {
-                    title: "Minhas Listas",
-                    url: "#",
-                },
-            ],
-        },
-        {
-            title: "Sistema",
-            url: "#",
-            icon: Settings2,
-            items: [
-                {
-                    title: "Configurações",
-                    url: "/dashboard/settings",
-                },
-                {
-                    title: "Exportar Relatórios",
-                    url: "/dashboard/reports",
+                    title: "Mapa Estratégico",
+                    url: "/mapa",
                 },
             ],
         },
@@ -102,9 +57,9 @@ const data = {
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     return (
         <Sidebar collapsible="icon" {...props}>
-            <SidebarHeader>
+            {/* <SidebarHeader>
                 <TeamSwitcher teams={data.teams} />
-            </SidebarHeader>
+            </SidebarHeader> */}
             <SidebarContent>
                 <NavMain items={data.navMain} />
             </SidebarContent>

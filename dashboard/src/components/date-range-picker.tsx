@@ -13,12 +13,12 @@ import {
     PopoverContent,
     PopoverTrigger,
 } from "@/components/ui/popover"
-import { useDashboard } from "@/components/dashboard-context"
+import { useFilterStore } from "@/store/use-filter-store"
 
 export function DateRangePicker({
     className,
 }: React.HTMLAttributes<HTMLDivElement>) {
-    const { dateRange, setDateRange } = useDashboard()
+    const { dateRange, setDateRange } = useFilterStore()
 
     return (
         <div className={cn("grid gap-2", className)}>

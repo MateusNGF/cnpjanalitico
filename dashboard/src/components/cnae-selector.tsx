@@ -17,7 +17,7 @@ import {
     PopoverContent,
     PopoverTrigger,
 } from "@/components/ui/popover"
-import { useDashboard } from "@/components/dashboard-context"
+import { useFilterStore } from "@/store/use-filter-store"
 
 const mockCnaes = [
     { value: "6201-5/00", label: "Desenvolvimento de Software" },
@@ -29,7 +29,7 @@ const mockCnaes = [
 
 export function CnaeSelector() {
     const [open, setOpen] = React.useState(false)
-    const { cnae, setCnae } = useDashboard()
+    const { cnae, setCnae } = useFilterStore()
 
     const selected = mockCnaes.find((item) => item.value === cnae)
 

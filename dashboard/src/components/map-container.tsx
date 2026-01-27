@@ -1,12 +1,13 @@
 "use client"
 
 import dynamic from "next/dynamic"
-import { useDashboard } from "@/components/dashboard-context"
+
+import { useFilterStore } from "@/store/use-filter-store"
+import { useDataStore } from "@/store/use-data-store"
 import { Card } from "@/components/ui/card"
 import { useMemo } from "react"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useEffect, useState } from "react"
-import { MOCK_GEOJSON } from "@/lib/mock-geojson"
 
 interface MapStats {
     municipio: string
@@ -21,58 +22,53 @@ const DynamicMap = dynamic<any>(() => import("@/components/ui/map-client"), {
 })
 
 export function MapContainer() {
-    const { uf, setCity } = useDashboard()
+    const { uf, setCity } = useFilterStore()
+    const { data: mapData, loading: mapLoading } = useDataStore(s => s.map)
+    const fetchMap = useDataStore(s => s.fetchMap)
     const [geoData, setGeoData] = useState<any>(null)
-    const [loading, setLoading] = useState(true)
+    const [geoLoading, setGeoLoading] = useState(false)
 
     useEffect(() => {
         async function loadMap() {
             if (!uf || uf === "BR") {
                 setGeoData(null)
-                setLoading(false)
                 return
             }
 
-            setLoading(true)
+            setGeoLoading(true)
+            fetchMap(uf)
+
             try {
-                // 1. Fetch geometry from IBGE
                 const geoUrl = `https://servicodados.ibge.gov.br/api/v3/malhas/estados/${uf}?formato=application/vnd.geo+json&qualidade=minima&resolucao=municipio`;
-                const statsUrl = `/api/stats/map?uf=${uf}`; // Adjusted endpoint name for clarity
-
-                const [geoRes, statsRes] = await Promise.all([
-                    fetch(geoUrl),
-                    fetch(`/api/map?uf=${uf}`)
-                ]);
-
-                if (!geoRes.ok || !statsRes.ok) throw new Error("Failed to fetch map data");
-
+                const geoRes = await fetch(geoUrl);
+                if (!geoRes.ok) throw new Error("Failed to fetch geometry");
                 const geoJson = await geoRes.json();
-                const stats = await statsRes.json();
-
-                // 2. Merge data
-                const statsMap = new Map(stats.map((s: any) => [s.id, s.value]));
-
-                const enrichedGeoJson = {
-                    ...geoJson,
-                    features: geoJson.features.map((feature: any) => ({
-                        ...feature,
-                        properties: {
-                            ...feature.properties,
-                            density: statsMap.get(feature.id) || 0,
-                            name: feature.properties.codarea // Initially name is code, we could map to name if available
-                        }
-                    }))
-                };
-
-                setGeoData(enrichedGeoJson);
+                setGeoData(geoJson);
             } catch (error) {
-                console.error("Error loading map:", error);
+                console.error("Error loading map geometry:", error);
             } finally {
-                setLoading(false)
+                setGeoLoading(false)
             }
         }
         loadMap()
-    }, [uf])
+    }, [uf, fetchMap])
+
+    const enrichedGeoData = useMemo(() => {
+        if (!geoData || !mapData) return geoData;
+        const statsMap = new Map(mapData.map((s: any) => [String(s.id), s.value]));
+        return {
+            ...geoData,
+            features: geoData.features.map((feature: any) => ({
+                ...feature,
+                properties: {
+                    ...feature.properties,
+                    density: statsMap.get(String(feature.id)) || statsMap.get(String(feature.properties.codarea)) || 0,
+                }
+            }))
+        };
+    }, [geoData, mapData]);
+
+    const loading = mapLoading || geoLoading;
 
     const handleRegionClick = (regionName: string) => {
         setCity(regionName)

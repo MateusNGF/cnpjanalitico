@@ -17,7 +17,7 @@ import {
     PopoverContent,
     PopoverTrigger,
 } from "@/components/ui/popover"
-import { useDashboard } from "@/components/dashboard-context"
+import { useFilterStore } from "@/store/use-filter-store"
 import { Badge } from "@/components/ui/badge"
 
 const situacoes = [
@@ -30,7 +30,7 @@ const situacoes = [
 
 export function SituacaoSelector() {
     const [open, setOpen] = React.useState(false)
-    const { situacao, setSituacao } = useDashboard()
+    const { situacao, setSituacao } = useFilterStore()
 
     const selected = situacoes.find((s) => s.value === situacao)
 

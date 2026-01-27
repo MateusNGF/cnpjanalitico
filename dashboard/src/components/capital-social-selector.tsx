@@ -17,7 +17,7 @@ import {
     PopoverContent,
     PopoverTrigger,
 } from "@/components/ui/popover"
-import { useDashboard } from "@/components/dashboard-context"
+import { useFilterStore } from "@/store/use-filter-store"
 
 const ranges: { label: string; value: [number, number] | null }[] = [
     { label: "Até R$ 10k", value: [0, 10000] },
@@ -29,7 +29,7 @@ const ranges: { label: string; value: [number, number] | null }[] = [
 
 export function CapitalSocialSelector() {
     const [open, setOpen] = React.useState(false)
-    const { capitalSocial, setCapitalSocial } = useDashboard()
+    const { capitalSocial, setCapitalSocial } = useFilterStore()
 
     const selected = ranges.find(
         (r) => r.value && capitalSocial && r.value[0] === capitalSocial[0] && r.value[1] === capitalSocial[1]

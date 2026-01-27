@@ -6,6 +6,8 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { BarChart3, TrendingUp, ShieldCheck, Landmark, Globe2, Briefcase, ChevronDown, Check, Search } from 'lucide-react';
 import { cn } from "@/lib/utils";
+import { useFilterStore } from '@/store/use-filter-store';
+import { useDataStore } from '@/store/use-data-store';
 
 // Componente para auto-ajuste do mapa
 const AutoZoom = ({ bounds }: { bounds: L.LatLngBounds | null }) => {
@@ -16,6 +18,24 @@ const AutoZoom = ({ bounds }: { bounds: L.LatLngBounds | null }) => {
         }
     }, [bounds, map]);
     return null;
+};
+
+const MapLegend = () => {
+    return (
+        <div className="absolute bottom-6 right-6 z-[1000] bg-zinc-950/40 backdrop-blur-md border border-white/5 p-3 px-4 rounded-2xl shadow-2xl flex flex-col gap-2">
+            <div className="flex items-center justify-between gap-4">
+                <span className="text-[8px] text-zinc-500 uppercase font-black tracking-widest">Densidade Empresarial</span>
+                <span className="text-[8px] text-zinc-600 font-mono italic text-right">Transparência p/ Intensidade</span>
+            </div>
+            <div className="flex items-center gap-2">
+                <span className="text-[9px] text-zinc-400 font-bold uppercase opacity-50">Residual</span>
+                <div className="h-1.5 w-32 rounded-full border border-white/5 shadow-inner" style={{
+                    background: 'linear-gradient(90deg, #60a5fa 0%, #2563eb 50%, #172554 100%)'
+                }}></div>
+                <span className="text-[9px] text-zinc-400 font-bold uppercase">Denso</span>
+            </div>
+        </div>
+    );
 };
 
 interface State {
@@ -33,16 +53,22 @@ interface MunicipalData {
 }
 
 const MapaMalha = () => {
-    const [uf, setUf] = useState('MG');
+    const { uf, setUf } = useFilterStore();
+    const { data: stateStats, loading: statsLoading } = useDataStore(s => s.stats);
+    const { data: mapData, loading: mapLoading } = useDataStore(s => s.map);
+    const fetchStats = useDataStore(s => s.fetchStats);
+    const fetchMap = useDataStore(s => s.fetchMap);
+
     const [estados, setEstados] = useState<State[]>([]);
     const [geoData, setGeoData] = useState<any>(null);
-    const [loading, setLoading] = useState(true);
+    const [geoLoading, setGeoLoading] = useState(false);
     const [mapBounds, setMapBounds] = useState<L.LatLngBounds | null>(null);
     const [selectorOpen, setSelectorOpen] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
 
+    const loading = statsLoading || mapLoading || geoLoading;
+
     // Dados de Negócio
-    const [stateStats, setStateStats] = useState<any>(null);
     const [municipalStats, setMunicipalStats] = useState<Map<string, MunicipalData>>(new Map());
     const [hoveredCity, setHoveredCity] = useState<any>(null);
 
@@ -55,43 +81,58 @@ const MapaMalha = () => {
     }, []);
 
     useEffect(() => {
-        setLoading(true);
+        setGeoLoading(true);
         setGeoData(null);
         setMunicipalStats(new Map());
 
-        // 1. URLs
-        const geoUrl = `https://servicodados.ibge.gov.br/api/v3/malhas/estados/${uf}?formato=application/vnd.geo+json&qualidade=minima&intrarregiao=municipio`;
-        const statsUrl = `/api/stats?uf=${uf}`;
-        const mapDataUrl = `/api/map?uf=${uf}`;
+        const isNational = uf === 'BR';
+        const geoUrl = isNational
+            ? `https://servicodados.ibge.gov.br/api/v3/malhas/paises/BR?formato=application/vnd.geo+json&qualidade=minima&intrarregiao=estado`
+            : `https://servicodados.ibge.gov.br/api/v3/malhas/estados/${uf}?formato=application/vnd.geo+json&qualidade=minima&intrarregiao=municipio`;
 
-        Promise.all([
-            fetch(geoUrl).then(res => res.json()),
-            fetch(statsUrl).then(res => res.json()),
-            fetch(mapDataUrl).then(res => res.json())
-        ]).then(([geo, stats, mapData]) => {
-            const statsMap = new Map();
-            if (Array.isArray(mapData)) {
-                mapData.forEach((item: any) => {
-                    statsMap.set(String(item.id), {
-                        id: item.id,
-                        nome: item.nome || "Município",
-                        value: item.value || 0
-                    });
+        // Fetch Business Data via Store
+        fetchStats({ uf });
+        fetchMap({ uf });
+
+        // Fetch GeoJSON locally (as it's a direct IBGE call)
+        fetch(geoUrl)
+            .then(res => {
+                if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+                return res.json();
+            })
+            .then(geo => {
+                if (!geo || typeof geo !== 'object' || (!geo.features && geo.type !== 'Feature')) {
+                    throw new Error("Invalid GeoJSON received from IBGE");
+                }
+                setGeoData(geo);
+                try {
+                    const layer = L.geoJSON(geo);
+                    setMapBounds(layer.getBounds());
+                } catch (e) {
+                    console.error("Error creating Leaflet layer:", e);
+                }
+                setGeoLoading(false);
+            })
+            .catch(err => {
+                console.error("Erro ao carregar malha:", err);
+                setGeoLoading(false);
+            });
+    }, [uf, fetchStats, fetchMap]);
+
+    // Processar dados do mapa quando o store atualizar
+    useEffect(() => {
+        const statsMap = new Map();
+        if (Array.isArray(mapData)) {
+            mapData.forEach((item: any) => {
+                statsMap.set(String(item.id), {
+                    id: item.id,
+                    nome: item.nome || "Município",
+                    value: item.value || 0
                 });
-            }
-
-            setStateStats(stats);
-            setMunicipalStats(statsMap);
-            setGeoData(geo);
-
-            const layer = L.geoJSON(geo);
-            setMapBounds(layer.getBounds());
-            setLoading(false);
-        }).catch(err => {
-            console.error("Erro ao carregar dados:", err);
-            setLoading(false);
-        });
-    }, [uf]);
+            });
+        }
+        setMunicipalStats(statsMap);
+    }, [mapData]);
 
     const currentUF = estados.find(e => e.sigla === uf) || { sigla: uf, nome: uf, flag_url: '' };
 
@@ -101,34 +142,35 @@ const MapaMalha = () => {
     }, [municipalStats]);
 
     const getColor = (density: number) => {
-        if (density === 0) return '#1a1a1a';
+        if (density === 0) return 'transparent';
 
-        // Logarithmic scale for better distribution of values
         const logMax = Math.log10(maxDensity + 1);
         const logVal = Math.log10(density + 1);
         const ratio = logVal / logMax;
 
-        // Custom 9-step high-contrast color scale (Dark Indigo to Electric Cyan)
-        if (ratio > 0.9) return '#2dd4bf'; // Teal 400
-        if (ratio > 0.8) return '#14b8a6'; // Teal 500
-        if (ratio > 0.7) return '#06b6d4'; // Cyan 500
-        if (ratio > 0.6) return '#0ea5e9'; // Sky 500
-        if (ratio > 0.5) return '#3b82f6'; // Blue 500
-        if (ratio > 0.4) return '#6366f1'; // Indigo 500
-        if (ratio > 0.3) return '#818cf8'; // Indigo 400
-        if (ratio > 0.2) return '#4338ca'; // Indigo 700
-        return '#312e81'; // Indigo 900
+        // "Darker = Denser" Logic
+        if (ratio > 0.9) return '#172554'; // Midnight Blue (Peak)
+        if (ratio > 0.7) return '#1e3a8a';
+        if (ratio > 0.5) return '#2563eb';
+        if (ratio > 0.3) return '#3b82f6';
+        return '#60a5fa'; // Light Blue (Residual)
     };
 
     const geoJsonStyle = (feature: any) => {
-        const mData = municipalStats.get(String(feature.properties.codarea));
+        const codigo = String(feature.properties?.codarea || feature.id || feature.properties?.id || "");
+        const mData = municipalStats.get(codigo);
         const density = mData?.value || 0;
+
+        const logMax = Math.log10(maxDensity + 1);
+        const logVal = Math.log10(density + 1);
+        const ratio = density === 0 ? 0 : logVal / logMax;
+
         return {
             fillColor: getColor(density),
-            weight: 0.3,
+            weight: 0.1,
             opacity: 1,
-            color: '#000000',
-            fillOpacity: 0.85,
+            color: '#ffffff30', // Clearer white borders for contrast against dark navy
+            fillOpacity: ratio === 0 ? 0 : 0.2 + (ratio * 0.75), // Higher density = more solid
         };
     };
 
@@ -303,6 +345,8 @@ const MapaMalha = () => {
                 </div>
             )}
 
+            <MapLegend />
+
             <MapContainer
                 center={[-19.9, -43.9]}
                 zoom={6}
@@ -317,7 +361,7 @@ const MapaMalha = () => {
                             data={geoData}
                             style={geoJsonStyle}
                             onEachFeature={(feature, layer) => {
-                                const codigo = String(feature.properties.codarea);
+                                const codigo = String(feature.properties?.codarea || feature.id || feature.properties?.id || "");
                                 const mData = municipalStats.get(codigo);
                                 const nome = mData?.nome || feature.properties.name || "Município";
                                 const densidade = mData?.value || 0;
@@ -341,7 +385,7 @@ const MapaMalha = () => {
                                     <div style="font-size: 10px; color: #3b82f6; font-weight: 700; margin-top: 2px;">Densidade: ${densidade.toLocaleString()} unid.</div>
                                     <div style="font-size: 9px; color: #555; margin-top: 4px; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 4px;">IBGE: ${codigo}</div>
                                   </div>
-                                `, { sticky: true, direction: 'top', offset: [0, -10], opacity: 1, className: 'minimal-tooltip' });
+                                `, { sticky: false, direction: 'top', offset: [0, -10], opacity: 1, className: 'minimal-tooltip' });
 
                                 // Permanet labels for high density
                                 if (densidade > (maxDensity * 0.7)) {

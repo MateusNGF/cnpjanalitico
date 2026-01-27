@@ -17,7 +17,7 @@ import {
     PopoverContent,
     PopoverTrigger,
 } from "@/components/ui/popover"
-import { useDashboard } from "@/components/dashboard-context"
+import { useFilterStore } from "@/store/use-filter-store"
 
 const naturezas = [
     { value: "2062", label: "Sociedade Empresária Limitada" },
@@ -29,7 +29,7 @@ const naturezas = [
 
 export function NaturezaSelector() {
     const [open, setOpen] = React.useState(false)
-    const { naturezaJuridica, setNaturezaJuridica } = useDashboard()
+    const { naturezaJuridica, setNaturezaJuridica } = useFilterStore()
 
     const selected = naturezas.find((n) => n.value === naturezaJuridica)
 

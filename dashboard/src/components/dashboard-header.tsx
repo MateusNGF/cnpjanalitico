@@ -14,13 +14,13 @@ import {
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Search, Download } from "lucide-react"
-import { useDashboard } from "@/components/dashboard-context"
+import { useFilterStore } from "@/store/use-filter-store"
 import { StateSelector } from "@/components/state-selector"
 import { SituacaoSelector } from "@/components/situacao-selector"
 import { CnaeSelector } from "@/components/cnae-selector"
 
 export function DashboardHeader() {
-    const { uf, setUf } = useDashboard()
+    const { uf, setUf } = useFilterStore()
 
     const getStateName = (uf: string) => {
         switch (uf) {
