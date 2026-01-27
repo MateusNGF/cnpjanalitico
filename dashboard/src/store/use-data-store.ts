@@ -13,7 +13,7 @@ interface FilterParams {
 function buildQueryParams(filters: FilterParams) {
     const params = new URLSearchParams()
     if (filters.uf) params.append('uf', filters.uf)
-    if (filters.city) params.append('municipio', filters.city)
+    if (filters.city) params.append('municipio_id', filters.city)
     if (filters.cnae) params.append('cnae', filters.cnae)
     if (filters.situacao) params.append('situacao', filters.situacao)
     if (filters.naturezaJuridica) params.append('natureza', filters.naturezaJuridica)
@@ -26,10 +26,12 @@ function buildQueryParams(filters: FilterParams) {
     return params.toString()
 }
 
+import { StateStats } from '@/components/Map/types'
+
 interface DataState {
     // Stats (KPIs)
     stats: {
-        data: { capital: number; natalidade: number; survival: number; topCnaes?: { label: string; value: number }[] } | null
+        data: StateStats | null
         loading: boolean
         error: string | null
     }

@@ -31,8 +31,30 @@ ORDER BY codigo;
 
 CREATE TABLE IF NOT EXISTS cnpj_analytics.dim_cnae (
     codigo String, -- Pode conter caracteres especiais ou ser numérico
-    descricao String
+    descricao String,
+    INDEX idx_cnae_desc descricao TYPE tokenbf_v1(1024, 3, 0) GRANULARITY 4,
+    INDEX idx_cnae_ngram descricao TYPE ngrambf_v1(4, 1024, 3, 0) GRANULARITY 1
 ) ENGINE = MergeTree() ORDER BY codigo;
+
+-- Dicionários em Memória para Performance Instantânea
+CREATE DICTIONARY IF NOT EXISTS cnpj_analytics.dict_cnae (
+    codigo String,
+    descricao String
+)
+PRIMARY KEY codigo
+SOURCE(CLICKHOUSE(TABLE 'dim_cnae' DB 'cnpj_analytics'))
+LIFETIME(MIN 0 MAX 3600)
+LAYOUT(HASHED());
+
+CREATE DICTIONARY IF NOT EXISTS cnpj_analytics.dict_municipios (
+    codigo String,
+    descricao String,
+    codigo_ibge String
+)
+PRIMARY KEY codigo
+SOURCE(CLICKHOUSE(TABLE 'dim_municipios' DB 'cnpj_analytics'))
+LIFETIME(MIN 0 MAX 3600)
+LAYOUT(HASHED());
 
 CREATE TABLE IF NOT EXISTS cnpj_analytics.dim_motivos (
     codigo String,
@@ -107,7 +129,9 @@ CREATE TABLE IF NOT EXISTS cnpj_analytics.estabelecimentos (
     data_inicio_atividade Nullable(Date32),
     ddd1 String,
     telefone1 String,
-    correio_eletronico String CODEC(ZSTD(1))
+    correio_eletronico String CODEC(ZSTD(1)),
+    INDEX idx_fantasia nome_fantasia TYPE tokenbf_v1(4096, 3, 0) GRANULARITY 4,
+    INDEX idx_bairro bairro TYPE bloom_filter(0.01) GRANULARITY 1
 ) ENGINE = MergeTree() 
 PARTITION BY uf
 -- A ordem abaixo otimiza queries do tipo: "Quantas empresas ativas de TI existem em MG?"
@@ -139,6 +163,51 @@ SELECT
     count() as total
 FROM cnpj_analytics.estabelecimentos
 GROUP BY uf, cnae_fiscal_principal;
+
+-- MV: Ranking de CNAE por Município
+CREATE MATERIALIZED VIEW IF NOT EXISTS cnpj_analytics.mv_cnae_municipio_ranking
+ENGINE = SummingMergeTree()
+ORDER BY (uf, municipio, cnae_fiscal_principal) AS
+SELECT 
+    uf,
+    municipio,
+    cnae_fiscal_principal,
+    count() as total
+FROM cnpj_analytics.estabelecimentos
+GROUP BY uf, municipio, cnae_fiscal_principal;
+
+-- MV: Segmentação por Porte (MEI, Pequena, Grande)
+CREATE MATERIALIZED VIEW IF NOT EXISTS cnpj_analytics.mv_segmentacao_porte
+ENGINE = SummingMergeTree()
+ORDER BY (uf, municipio, porte) AS
+SELECT 
+    uf,
+    municipio,
+    CASE 
+        WHEN s.opcao_pelo_mei = 'S' THEN 'MEI'
+        WHEN emp.porte_empresa = '01' THEN 'GRANDE'
+        WHEN emp.porte_empresa IN ('03', '05') THEN 'PEQUENA'
+        ELSE 'OUTROS'
+    END as porte,
+    count() as total
+FROM cnpj_analytics.estabelecimentos e
+LEFT JOIN cnpj_analytics.empresas emp ON e.cnpj_basico = emp.cnpj_basico
+LEFT JOIN cnpj_analytics.simples s ON e.cnpj_basico = s.cnpj_basico
+WHERE e.situacao_cadastral = '02'
+GROUP BY uf, municipio, porte;
+
+-- MV: Balanço de Mercado (Natalidade e Mortalidade Unificadas)
+-- Elimina JOIN no gráfico de tendências
+CREATE MATERIALIZED VIEW IF NOT EXISTS cnpj_analytics.mv_balanco_mercado
+ENGINE = SummingMergeTree()
+ORDER BY (uf, ano_mes) AS
+SELECT 
+    uf,
+    toStartOfMonth(coalesce(data_inicio_atividade, data_situacao_cadastral, toDate('1900-01-01'))) as ano_mes,
+    countIf(situacao_cadastral = '02') as natalidade,
+    countIf(situacao_cadastral = '08') as mortalidade
+FROM cnpj_analytics.estabelecimentos
+GROUP BY uf, ano_mes;
 
 -- MV: Natalidade das Empresas (Novos CNPJs por mês)
 CREATE MATERIALIZED VIEW IF NOT EXISTS cnpj_analytics.mv_natalidade_mensal

@@ -1,12 +1,13 @@
-import React from 'react';
+import React, { memo } from 'react';
 import { TrendingUp, Briefcase, Landmark, ShieldCheck } from 'lucide-react';
 import { formatNumber } from "@/lib/utils";
+import { StateStats } from '../types';
 
 interface MapAnalysisPanelProps {
-    stats: any;
+    stats: StateStats | null;
 }
 
-export const MapAnalysisPanel = ({ stats }: MapAnalysisPanelProps) => {
+export const MapAnalysisPanel = memo(({ stats }: MapAnalysisPanelProps) => {
     const formatCurrency = (val: number) => {
         if (!val || isNaN(val)) return 'R$ 0,00';
         return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', notation: 'compact' }).format(val);
@@ -131,4 +132,4 @@ export const MapAnalysisPanel = ({ stats }: MapAnalysisPanelProps) => {
             </div>
         </div>
     );
-};
+});

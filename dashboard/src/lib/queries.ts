@@ -24,11 +24,10 @@ export const QUERIES = {
 
   KPI_TOP_CNAE: `
     SELECT 
-        c.descricao as label,
-        sum(r.total) as value
-    FROM mv_cnae_ranking r
-    JOIN dim_cnae c ON r.cnae_fiscal_principal = c.codigo
-    WHERE r.uf = {uf:String}
+        dictGet('cnpj_analytics.dict_cnae', 'descricao', cnae_fiscal_principal) as label,
+        sum(total) as value
+    FROM mv_cnae_ranking
+    WHERE uf = {uf:String}
     GROUP BY label
     ORDER BY value DESC
     LIMIT 5
@@ -36,12 +35,11 @@ export const QUERIES = {
 
   KPI_MUNICIPAL_TOP_CNAE: `
     SELECT 
-        c.descricao as label,
-        sum(r.total) as value
-    FROM mv_cnae_municipio_ranking r
-    JOIN dim_municipios m ON r.municipio = m.codigo AND r.uf = m.uf
-    JOIN dim_cnae c ON r.cnae_fiscal_principal = c.codigo
-    WHERE m.codigo_ibge = {municipio_id:String}
+        dictGet('cnpj_analytics.dict_cnae', 'descricao', cnae_fiscal_principal) as label,
+        sum(total) as value
+    FROM mv_cnae_municipio_ranking
+    WHERE uf = {uf:String} 
+      AND municipio = (SELECT codigo FROM dim_municipios WHERE codigo_ibge = {municipio_id:String} LIMIT 1)
     GROUP BY label
     ORDER BY value DESC
     LIMIT 5
@@ -49,48 +47,42 @@ export const QUERIES = {
 
   CNAE_SEARCH: `
     SELECT 
-        c.descricao as label,
-        sum(r.total) as value
-    FROM mv_cnae_municipio_ranking r
-    JOIN dim_municipios m ON r.municipio = m.codigo AND r.uf = m.uf
-    JOIN dim_cnae c ON r.cnae_fiscal_principal = c.codigo
-    WHERE m.codigo_ibge = {municipio_id:String}
-      AND (lower(c.descricao) LIKE {search:String} OR c.codigo LIKE {search:String})
+        dictGet('cnpj_analytics.dict_cnae', 'descricao', cnae_fiscal_principal) as label,
+        sum(total) as value
+    FROM mv_cnae_municipio_ranking
+    WHERE uf = {uf:String}
+      AND municipio = (SELECT codigo FROM dim_municipios WHERE codigo_ibge = {municipio_id:String} LIMIT 1)
+      AND (label ILIKE {search:String} OR cnae_fiscal_principal ILIKE {search:String})
     GROUP BY label
     ORDER BY value DESC
     LIMIT 10
   `,
 
   // 2. Trend Chart (Market Dynamics)
-  // Real-time aggregation of openings vs closings
+  // Consumes Unified Balance View
   TREND_CHART: `
     SELECT 
-        n.ano_mes as month,
-        n.novos_cnpjs as natalidade,
-        m.empresas_baixadas as mortalidade
-    FROM mv_natalidade_mensal n
-    LEFT JOIN mv_mortalidade_mensal m ON n.ano_mes = m.ano_mes AND n.uf = m.uf
-    WHERE n.uf = {uf:String}
+        ano_mes as month,
+        natalidade,
+        mortalidade
+    FROM mv_balanco_mercado
+    WHERE uf = {uf:String}
     ORDER BY month ASC
     LIMIT 12
   `,
 
   // 3. Map Distribution (Discovery Engine)
-  // Uses pre-calculated density view
   MAP_DENSITY: `
     SELECT 
-        m.codigo_ibge as id,
-        m.descricao as nome,
-        sum(r.total) as value
-    FROM dim_municipios m
-    JOIN dim_estados e ON m.uf = toString(e.codigo_uf)
-    LEFT JOIN mv_ranking_bairros r ON r.municipio = m.codigo AND r.uf = e.sigla
-    WHERE e.sigla = {uf:String}
-    GROUP BY m.codigo_ibge, m.descricao
+        dictGet('cnpj_analytics.dict_municipios', 'codigo_ibge', municipio) as id,
+        dictGet('cnpj_analytics.dict_municipios', 'descricao', municipio) as nome,
+        sum(total) as value
+    FROM mv_resumo_municipio
+    WHERE uf = {uf:String}
+    GROUP BY id, nome
   `,
 
   // 4. Lead Prospecting (Operational Layer)
-  // Complex view joining Partners, Address, and Market Segmentation
   LEAD_LIST: `
     SELECT 
         l.razao_social,
