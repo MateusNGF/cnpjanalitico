@@ -160,7 +160,7 @@ def process_file(filepath, file_type, client, progress, overall_task, file_summa
         filepath, 
         separator=';', 
         has_header=False, 
-        encoding='utf8-lossy', 
+        encoding='iso-8859-1', 
         quote_char='"',
         ignore_errors=True,
         truncate_ragged_lines=True,

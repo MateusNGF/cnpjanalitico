@@ -34,7 +34,7 @@ export async function GET(req: NextRequest) {
             capital: capitalResult[0]?.total_market_volume || 0,
             natalidade: natalidadeResult[0]?.new_companies || 0,
             survival: survivalResult[0]?.survival_index || 0,
-            topCnae: topCnaeResult[0]?.label || "N/A",
+            topCnaes: topCnaeResult.map(r => ({ label: r.label, value: r.value })),
         })
     } catch (error) {
         console.error("Stats API Error:", error)

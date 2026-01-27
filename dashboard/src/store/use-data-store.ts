@@ -29,7 +29,7 @@ function buildQueryParams(filters: FilterParams) {
 interface DataState {
     // Stats (KPIs)
     stats: {
-        data: { capital: number; natalidade: number; survival: number; topCnae?: string } | null
+        data: { capital: number; natalidade: number; survival: number; topCnaes?: { label: string; value: number }[] } | null
         loading: boolean
         error: string | null
     }

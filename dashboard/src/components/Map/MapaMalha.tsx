@@ -9,7 +9,7 @@ import { useMapData } from './hooks/use-map-data';
 import { MapLegend } from './components/MapLegend';
 import { MapSelector } from './components/MapSelector';
 import { MapAnalysisPanel } from './components/MapAnalysisPanel';
-import { MapCityDetails } from './components/MapCityDetails';
+import { CityDetailSheet } from './components/CityDetailSheet';
 import { HoveredCity } from './types';
 
 // Componente para auto-ajuste do mapa
@@ -39,6 +39,7 @@ const MapaMalha = () => {
     } = useMapData();
 
     const [hoveredCity, setHoveredCity] = useState<HoveredCity | null>(null);
+    const [selectedCity, setSelectedCity] = useState<HoveredCity | null>(null);
 
     const getColor = (density: number) => {
         if (!density || density === 0) return '#ffffff05';
@@ -58,6 +59,7 @@ const MapaMalha = () => {
         const codigo = String(feature.properties?.codarea || feature.id || feature.properties?.id || "").trim();
         const mData = municipalStats.get(codigo);
         const density = mData?.value || 0;
+        const isHovered = hoveredCity?.codigo === codigo;
 
         const logMax = Math.log10(maxDensity + 1);
         const logVal = Math.log10(density + 1);
@@ -65,10 +67,10 @@ const MapaMalha = () => {
 
         return {
             fillColor: getColor(density),
-            weight: 0.1,
+            weight: isHovered ? 3 : 0.1,
             opacity: 1,
-            color: '#ffffff30',
-            fillOpacity: ratio === 0 ? 0 : 0.2 + (ratio * 0.75),
+            color: isHovered ? '#ffffff' : '#ffffff30',
+            fillOpacity: isHovered ? 0.95 : (ratio === 0 ? 0 : 0.2 + (ratio * 0.75)),
         };
     };
 
@@ -77,9 +79,11 @@ const MapaMalha = () => {
             <MapSelector uf={uf} setUf={setUf} estados={estados} currentUF={currentUF} />
             <MapAnalysisPanel stats={stateStats} />
 
-            <div className="absolute top-[380px] left-6 z-[1000] w-72 pointer-events-none">
-                <MapCityDetails hoveredCity={hoveredCity} />
-            </div>
+            <CityDetailSheet
+                selectedCity={selectedCity}
+                onClose={() => setSelectedCity(null)}
+            />
+
 
             {loading && (
                 <div className="absolute inset-0 z-[2000] flex items-center justify-center bg-black/80 backdrop-blur-md">
@@ -118,7 +122,12 @@ const MapaMalha = () => {
                                 layer.on({
                                     mouseover: (e) => {
                                         const l = e.target;
-                                        l.setStyle({ weight: 2, color: '#60a5fa', fillOpacity: 0.9 });
+                                        l.setStyle({
+                                            weight: 3,
+                                            color: '#ffffff',
+                                            fillOpacity: 0.95,
+                                            opacity: 1
+                                        });
                                         l.bringToFront();
                                         setHoveredCity({ nome, codigo, densidade });
                                     },
@@ -130,6 +139,9 @@ const MapaMalha = () => {
                                             fillOpacity: ratio === 0 ? 0 : 0.2 + (ratio * 0.75)
                                         });
                                         setHoveredCity(null);
+                                    },
+                                    click: () => {
+                                        setSelectedCity({ nome, codigo, densidade });
                                     }
                                 });
 

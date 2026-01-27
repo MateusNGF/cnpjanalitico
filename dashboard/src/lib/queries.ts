@@ -31,7 +31,7 @@ export const QUERIES = {
     WHERE r.uf = {uf:String}
     GROUP BY label
     ORDER BY value DESC
-    LIMIT 1
+    LIMIT 5
   `,
 
   // 2. Trend Chart (Market Dynamics)
