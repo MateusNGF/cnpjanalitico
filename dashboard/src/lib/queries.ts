@@ -56,8 +56,8 @@ export const QUERIES = {
         m.descricao as nome,
         sum(r.total) as value
     FROM dim_municipios m
-    JOIN dim_estados e ON m.uf = CAST(e.codigo_uf AS String)
-    LEFT JOIN mv_ranking_bairros r ON r.municipio = m.codigo
+    JOIN dim_estados e ON m.uf = toString(e.codigo_uf)
+    LEFT JOIN mv_ranking_bairros r ON r.municipio = m.codigo AND r.uf = e.sigla
     WHERE e.sigla = {uf:String}
     GROUP BY m.codigo_ibge, m.descricao
   `,

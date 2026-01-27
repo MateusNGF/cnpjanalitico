@@ -28,7 +28,7 @@ export function DashboardHeader() {
             case "MG": return "Minas Gerais";
             case "RJ": return "Rio de Janeiro";
             case "RS": return "Rio Grande do Sul";
-            default: return "Brasil";
+            default: return uf || "Estado";
         }
     }
 

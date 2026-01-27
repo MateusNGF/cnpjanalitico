@@ -20,7 +20,7 @@ export interface FilterState {
 }
 
 export const useFilterStore = create<FilterState>((set) => ({
-    uf: 'BR',
+    uf: 'MG',
     city: null,
     cnae: null,
     situacao: null,

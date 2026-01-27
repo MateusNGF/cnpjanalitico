@@ -21,7 +21,6 @@ import { Badge } from "@/components/ui/badge"
 import { useFilterStore } from "@/store/use-filter-store"
 
 const states = [
-    { value: "BR", label: "Brasil (Geral)", flag: "🇧🇷" },
     { value: "AC", label: "Acre", flag: "󰂈" },
     { value: "AL", label: "Alagoas", flag: "󰂈" },
     { value: "AP", label: "Amapá", flag: "󰂈" },
@@ -66,10 +65,10 @@ export function StateSelector() {
                 >
                     <div className="flex items-center gap-2 overflow-hidden">
                         <span className="flex-shrink-0 text-lg">
-                            {states.find((s) => s.value === uf)?.flag || "🇧🇷"}
+                            {states.find((s) => s.value === uf)?.flag || "📍"}
                         </span>
                         <span className="truncate">
-                            {states.find((s) => s.value === uf)?.label || "Brasil (Geral)"}
+                            {states.find((s) => s.value === uf)?.label || "Selecione o Estado"}
                         </span>
                     </div>
                     <div className="flex items-center gap-1">
@@ -91,8 +90,8 @@ export function StateSelector() {
                                 <CommandItem
                                     key={state.value}
                                     value={state.value}
-                                    onSelect={(currentValue) => {
-                                        setUf(currentValue === uf ? "BR" : state.value)
+                                    onSelect={() => {
+                                        setUf(state.value)
                                         setOpen(false)
                                     }}
                                     className="flex items-center justify-between"

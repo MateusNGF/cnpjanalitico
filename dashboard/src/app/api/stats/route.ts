@@ -14,35 +14,20 @@ export async function GET(req: NextRequest) {
     try {
         const { searchParams } = new URL(req.url)
         const rawParams = {
-            uf: searchParams.get("uf") || "BR",
+            uf: searchParams.get("uf") || "MG",
             municipio: searchParams.get("municipio"),
             cnae: searchParams.get("cnae"),
             situacao: searchParams.get("situacao"),
         }
 
         const params = querySchema.parse(rawParams)
-        const isNational = params.uf === "BR"
 
         // Execute multiple KPI queries in parallel
         const [capitalResult, natalidadeResult, survivalResult, topCnaeResult] = await Promise.all([
-            query<{ total_market_volume: number }>(
-                isNational ? "SELECT sum(capital_total_setor) as total_market_volume FROM v_concentracao_mercado" : QUERIES.KPI_CAPITAL_SOCIAL,
-                isNational ? {} : { uf: params.uf }
-            ),
-            query<{ new_companies: number }>(
-                isNational ? "SELECT sum(total) as new_companies FROM mv_resumo_uf WHERE situacao_cadastral = '02'" : QUERIES.KPI_NATALIDADE,
-                isNational ? {} : { uf: params.uf }
-            ),
-            query<{ survival_index: number }>(
-                isNational ? "SELECT avg(tempo_vida_anos) as survival_index FROM mv_stats_sobrevivencia" : QUERIES.KPI_SURVIVAL_RATE,
-                isNational ? {} : { uf: params.uf }
-            ),
-            query<{ label: string; value: number }>(
-                isNational
-                    ? "SELECT c.descricao as label, sum(r.total) as value FROM mv_cnae_ranking r JOIN dim_cnae c ON r.cnae_fiscal_principal = c.codigo GROUP BY label ORDER BY value DESC LIMIT 1"
-                    : QUERIES.KPI_TOP_CNAE,
-                isNational ? {} : { uf: params.uf }
-            ),
+            query<{ total_market_volume: number }>(QUERIES.KPI_CAPITAL_SOCIAL, { uf: params.uf }),
+            query<{ new_companies: number }>(QUERIES.KPI_NATALIDADE, { uf: params.uf }),
+            query<{ survival_index: number }>(QUERIES.KPI_SURVIVAL_RATE, { uf: params.uf }),
+            query<{ label: string; value: number }>(QUERIES.KPI_TOP_CNAE, { uf: params.uf }),
         ])
 
         return NextResponse.json({
