@@ -90,17 +90,7 @@ def process_estados(client):
     print(f"-> Atualizando tabela dim_estados ({df_insert.height} linhas)...")
     
     # DDL
-    client.command(f"""
-        CREATE TABLE IF NOT EXISTS {DB_NAME}.dim_estados (
-            codigo_uf UInt8,
-            nome String,
-            sigla FixedString(2),
-            flag_url String,
-            regiao String,
-            coordenadas Point
-        ) ENGINE = MergeTree()
-        ORDER BY codigo_uf
-    """)
+    print("-> (Nota: A tabela dim_estados deve ser criada pelo setup.sql)")
 
     # Truncate e Insert
     print("-> Truncando e inserindo...")
@@ -201,7 +191,7 @@ def process_municipios(client):
 
     df_insert = df_final.select([
         pl.col("codigo_rfb").alias("codigo"),
-        pl.col("descricao"),
+        pl.col("descricao").fill_null(""),
         pl.col("codigo_ibge").fill_null("0000000"),
         pl.col("codigo_uf").alias("uf").fill_null(""),
         # ClickHouse Point é (x, y)
@@ -214,13 +204,8 @@ def process_municipios(client):
     # 5. Carga no ClickHouse
     print(f"-> Atualizando tabela dim_municipios ({df_insert.height} linhas)...")
     try:
-        # Garante estrutura
-        client.command(f"""
-            ALTER TABLE {DB_NAME}.dim_municipios 
-            ADD COLUMN IF NOT EXISTS codigo_ibge FixedString(7),
-            ADD COLUMN IF NOT EXISTS uf FixedString(2),
-            ADD COLUMN IF NOT EXISTS coordenadas Point
-        """)
+        # Garante estrutura (Nota: idealmente gerenciado pelo setup.sql)
+        pass
         
         print("-> Truncando e inserindo...")
         client.command(f"TRUNCATE TABLE {DB_NAME}.dim_municipios")
