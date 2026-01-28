@@ -12,7 +12,11 @@ export async function GET(req: NextRequest) {
             { uf }
         )
 
-        return NextResponse.json(result)
+        return NextResponse.json(result, {
+            headers: {
+                'Cache-Control': 'public, s-maxage=3600, stale-while-revalidate=600',
+            }
+        })
     } catch (error) {
         console.error("Trends API Error:", error)
         return NextResponse.json({ error: "Internal Server Error" }, { status: 500 })

@@ -10,8 +10,10 @@ export const clickhouse = createClient({
     username: user,
     password: password,
     database: database,
+    request_timeout: 60000, // 60s timeout for HTTP requests
     clickhouse_settings: {
         wait_end_of_query: 1,
+        max_execution_time: 60, // 60s query execution limit
     },
 })
 

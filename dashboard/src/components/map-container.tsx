@@ -36,7 +36,7 @@ export function MapContainer() {
             }
 
             setGeoLoading(true)
-            fetchMap(uf)
+            fetchMap({ uf })
 
             try {
                 const geoUrl = `https://servicodados.ibge.gov.br/api/v3/malhas/estados/${uf}?formato=application/vnd.geo+json&qualidade=minima&resolucao=municipio`;

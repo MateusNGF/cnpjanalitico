@@ -14,7 +14,11 @@ export async function GET(req: NextRequest) {
             return NextResponse.json([])
         }
 
-        return NextResponse.json(result)
+        return NextResponse.json(result, {
+            headers: {
+                'Cache-Control': 'public, s-maxage=86400, stale-while-revalidate=3600', // 24h cache
+            }
+        })
     } catch (error: any) {
         console.error("States API Error:", error)
         // Return error with 500 so UI can handle it or use a default list

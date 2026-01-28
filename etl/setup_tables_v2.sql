@@ -137,24 +137,26 @@ SELECT uf, municipio, cnae_fiscal_principal, count() as total
 FROM cnpj_analytics.estabelecimentos
 GROUP BY uf, municipio, cnae_fiscal_principal;
 
-CREATE MATERIALIZED VIEW IF NOT EXISTS cnpj_analytics.mv_segmentacao_porte
-ENGINE = SummingMergeTree()
-ORDER BY (uf, municipio, porte) AS
-SELECT 
-    uf,
-    municipio,
-    CASE 
-        WHEN s.opcao_pelo_mei = 'S' THEN 'MEI'
-        WHEN emp.porte_empresa = '01' THEN 'GRANDE'
-        WHEN emp.porte_empresa IN ('03', '05') THEN 'PEQUENA'
-        ELSE 'OUTROS'
-    END as porte,
-    count() as total
-FROM cnpj_analytics.estabelecimentos e
-LEFT JOIN cnpj_analytics.empresas emp ON e.cnpj_basico = emp.cnpj_basico
-LEFT JOIN cnpj_analytics.simples s ON e.cnpj_basico = s.cnpj_basico
-WHERE e.situacao_cadastral = '02'
-GROUP BY uf, municipio, porte;
+-- REMOVIDA: MV com JOIN causa OOM durante INSERT de estabelecimentos
+-- A segmentação por porte será feita como VIEW em setup_views_v2.sql
+-- CREATE MATERIALIZED VIEW IF NOT EXISTS cnpj_analytics.mv_segmentacao_porte
+-- ENGINE = SummingMergeTree()
+-- ORDER BY (uf, municipio, porte) AS
+-- SELECT 
+--     uf,
+--     municipio,
+--     CASE 
+--         WHEN s.opcao_pelo_mei = 'S' THEN 'MEI'
+--         WHEN emp.porte_empresa = '01' THEN 'GRANDE'
+--         WHEN emp.porte_empresa IN ('03', '05') THEN 'PEQUENA'
+--         ELSE 'OUTROS'
+--     END as porte,
+--     count() as total
+-- FROM cnpj_analytics.estabelecimentos e
+-- LEFT JOIN cnpj_analytics.empresas emp ON e.cnpj_basico = emp.cnpj_basico
+-- LEFT JOIN cnpj_analytics.simples s ON e.cnpj_basico = s.cnpj_basico
+-- WHERE e.situacao_cadastral = '02'
+-- GROUP BY uf, municipio, porte;
 
 CREATE MATERIALIZED VIEW IF NOT EXISTS cnpj_analytics.mv_balanco_mercado
 ENGINE = SummingMergeTree()
@@ -293,41 +295,41 @@ GROUP BY uf, municipio, cep_prefixo, cnae_fiscal_principal;
 -- ADD INDEX IF NOT EXISTS idx_capital capital_social TYPE minmax GRANULARITY 1;
 
 -- --------------------------------------------------------
--- 6. MVs com AggregatingMergeTree (Pré-Agregação Avançada)
+-- 6. MVs com AggregatingMergeTree (DESABILITADAS - causam OOM)
 -- --------------------------------------------------------
--- Estas MVs usam funções -State para calcular quantis e distintos
--- de forma incremental, evitando operações pesadas em tempo de consulta.
+-- AVISO: Estas MVs fazem JOINs durante INSERT e causam OOM com 36GB de RAM.
+-- Usar como VIEWs normais em setup_views_v2.sql após carga completa.
 
--- MV para análise de distribuição de capital por UF/Natureza
-CREATE MATERIALIZED VIEW IF NOT EXISTS cnpj_analytics.mv_capital_analytics
-ENGINE = AggregatingMergeTree()
-ORDER BY (uf, natureza_juridica) AS
-SELECT 
-    e.uf,
-    emp.natureza_juridica,
-    count() as total_empresas,
-    sumState(emp.capital_social) as capital_total_state,
-    avgState(emp.capital_social) as capital_medio_state,
-    quantileTDigestState(0.5)(emp.capital_social) as mediana_capital_state,
-    quantileTDigestState(0.95)(emp.capital_social) as p95_capital_state
-FROM cnpj_analytics.estabelecimentos e
-JOIN cnpj_analytics.empresas emp ON e.cnpj_basico = emp.cnpj_basico
-WHERE e.situacao_cadastral = '02'
-GROUP BY e.uf, emp.natureza_juridica;
+-- REMOVIDA: mv_capital_analytics (JOIN com empresas durante INSERT)
+-- CREATE MATERIALIZED VIEW IF NOT EXISTS cnpj_analytics.mv_capital_analytics
+-- ENGINE = AggregatingMergeTree()
+-- ORDER BY (uf, natureza_juridica) AS
+-- SELECT 
+--     e.uf,
+--     emp.natureza_juridica,
+--     count() as total_empresas,
+--     sumState(emp.capital_social) as capital_total_state,
+--     avgState(emp.capital_social) as capital_medio_state,
+--     quantileTDigestState(0.5)(emp.capital_social) as mediana_capital_state,
+--     quantileTDigestState(0.95)(emp.capital_social) as p95_capital_state
+-- FROM cnpj_analytics.estabelecimentos e
+-- JOIN cnpj_analytics.empresas emp ON e.cnpj_basico = emp.cnpj_basico
+-- WHERE e.situacao_cadastral = '02'
+-- GROUP BY e.uf, emp.natureza_juridica;
 
--- MV para análise de sócios (evita COUNT DISTINCT pesado usando HyperLogLog)
-CREATE MATERIALIZED VIEW IF NOT EXISTS cnpj_analytics.mv_socios_analytics
-ENGINE = AggregatingMergeTree()
-ORDER BY (uf, qualificacao_socio) AS
-SELECT 
-    e.uf,
-    s.qualificacao_socio,
-    uniqCombinedState(s.nome_socio) as socios_unicos_state,
-    uniqCombinedState(s.cnpj_basico) as empresas_com_socio_state,
-    countState() as total_vinculos_state
-FROM cnpj_analytics.socios s
-JOIN cnpj_analytics.estabelecimentos e ON s.cnpj_basico = e.cnpj_basico
-GROUP BY e.uf, s.qualificacao_socio;
+-- REMOVIDA: mv_socios_analytics (JOIN com estabelecimentos durante INSERT)
+-- CREATE MATERIALIZED VIEW IF NOT EXISTS cnpj_analytics.mv_socios_analytics
+-- ENGINE = AggregatingMergeTree()
+-- ORDER BY (uf, qualificacao_socio) AS
+-- SELECT 
+--     e.uf,
+--     s.qualificacao_socio,
+--     uniqCombinedState(s.nome_socio) as socios_unicos_state,
+--     uniqCombinedState(s.cnpj_basico) as empresas_com_socio_state,
+--     countState() as total_vinculos_state
+-- FROM cnpj_analytics.socios s
+-- JOIN cnpj_analytics.estabelecimentos e ON s.cnpj_basico = e.cnpj_basico
+-- GROUP BY e.uf, s.qualificacao_socio;
 
 -- Views dependentes de dicionários foram movidas para 'setup_views_v2.sql'
 

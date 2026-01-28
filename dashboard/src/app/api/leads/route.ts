@@ -27,7 +27,11 @@ export async function GET(req: NextRequest) {
             municipio: params.municipio || "Belo Horizonte" // Mocking a default if not provided for now to avoid crash if query requires it
         })
 
-        return NextResponse.json(result)
+        return NextResponse.json(result, {
+            headers: {
+                'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=30', // 1 minute cache
+            }
+        })
     } catch (error) {
         console.error("Leads API Error:", error)
         return NextResponse.json({ error: "Internal Server Error" }, { status: 500 })

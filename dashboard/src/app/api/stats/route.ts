@@ -45,7 +45,11 @@ export async function GET(req: NextRequest) {
             porteDist: porteResult.map(r => ({ label: r.label, value: r.value })),
         };
 
-        return NextResponse.json(response)
+        return NextResponse.json(response, {
+            headers: {
+                'Cache-Control': 'public, s-maxage=3600, stale-while-revalidate=600',
+            }
+        })
     } catch (error) {
         console.error("Stats API Error:", error)
         const message = error instanceof Error ? error.message : "Internal Server Error";

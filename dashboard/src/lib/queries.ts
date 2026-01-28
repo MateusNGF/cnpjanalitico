@@ -83,6 +83,8 @@ export const QUERIES = {
   `,
 
   // 4. Lead Prospecting (Operational Layer)
+  // 4. Lead Prospecting (Operational Layer)
+  // Optimized to use v_lead_completo + direct join to simples instead of joining two heavy views
   LEAD_LIST: `
     SELECT 
         l.razao_social,
@@ -90,12 +92,17 @@ export const QUERIES = {
         l.cnpj_basico || l.cnpj_ordem || l.cnpj_dv as cnpj_full,
         l.cnae_descricao,
         l.bairro,
-        l.municipio,
-        s.segmento_estimado as porte,
+        l.municipio_nome as municipio,
+        CASE 
+            WHEN l.capital_social > 10000000 THEN 'Corporativo (>10M)'
+            WHEN l.capital_social > 1000000 THEN 'Médio Porte (1M-10M)'
+            WHEN s.opcao_pelo_mei = 'S' THEN 'MEI'
+            ELSE 'Pequeno Porte'
+        END as porte,
         l.situacao_cadastral,
         l.capital_social
     FROM v_lead_completo l
-    JOIN v_segmentacao_mercado s ON l.cnpj_basico = s.cnpj_basico
+    LEFT JOIN simples s ON l.cnpj_basico = s.cnpj_basico
     WHERE 
         l.uf = {uf:String} 
         AND l.municipio = {municipio:String}
@@ -103,11 +110,12 @@ export const QUERIES = {
     LIMIT 100
   `,
 
+  // MV removed due to OOM -> Using View with Logic
   KPI_SEGMENTACAO_PORTE: `
     SELECT 
-        porte as label,
-        sum(total) as value
-    FROM mv_segmentacao_porte
+        segmento_estimado as label,
+        count() as value
+    FROM v_segmentacao_mercado
     WHERE uf = {uf:String}
     GROUP BY label
   `

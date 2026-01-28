@@ -220,7 +220,8 @@ def process_file(filepath, file_type, client, progress, overall_task, file_summa
     file_record = {
         "file": filename, "type": file_type, 
         "start": start_time.strftime("%H:%M:%S"), "end": "-", 
-        "rows": 0, "status": "[yellow]Iniciando...[/yellow]"
+        "rows_read": 0, "rows_inserted": 0, 
+        "status": "[yellow]Iniciando...[/yellow]"
     }
     file_summary.append(file_record)
     if ui_callback: ui_callback()
@@ -311,11 +312,13 @@ def process_file(filepath, file_type, client, progress, overall_task, file_summa
         BATCH_SIZE = 50000 
         processed_batches = q.collect(streaming=True)
         total_rows = processed_batches.height
-        file_record["rows"] = total_rows
+        file_record["rows_read"] = total_rows
+        rows_inserted = 0
         
         if total_rows == 0:
             file_record["status"] = "[white]Vazio[/white]"
             file_record["end"] = datetime.now().strftime("%H:%M:%S")
+            logging.info(f"{filename}: 0 linhas lidas, 0 inseridas")
             return
 
         file_task = progress.add_task(f"[cyan]{filename}", total=total_rows)
@@ -324,20 +327,24 @@ def process_file(filepath, file_type, client, progress, overall_task, file_summa
         
         for i in range(0, total_rows, BATCH_SIZE):
             batch = processed_batches.slice(i, BATCH_SIZE)
+            batch_rows = batch.height
             max_retries = 3
             for attempt in range(max_retries):
                 try:
                     client.insert(table_name, batch.rows(), column_names=batch.columns)
+                    rows_inserted += batch_rows
                     break
                 except Exception as e:
                     if attempt < max_retries - 1: time.sleep(5)
                     else: raise e
             
-            progress.update(file_task, advance=batch.height)
+            progress.update(file_task, advance=batch_rows)
             if ui_callback: ui_callback()
-            
+        
+        file_record["rows_inserted"] = rows_inserted
         file_record["status"] = "[green]Sucesso[/green]"
         file_record["end"] = datetime.now().strftime("%H:%M:%S")
+        logging.info(f"{filename}: {total_rows:,} lidas, {rows_inserted:,} inseridas")
         if ui_callback: ui_callback()
         progress.remove_task(file_task)
         progress.update(overall_task, advance=1)
@@ -347,6 +354,46 @@ def process_file(filepath, file_type, client, progress, overall_task, file_summa
         file_record["end"] = datetime.now().strftime("%H:%M:%S")
         logging.error(f"Erro processando {filename}: {e}", exc_info=True)
         if ui_callback: ui_callback()
+
+
+def print_final_summary(file_summary):
+    """Exibe resumo final com totais de linhas lidas e inseridas."""
+    console.print("\n")
+    
+    summary_table = Table(title="[bold]Resumo Final do ETL[/bold]", expand=True)
+    summary_table.add_column("Arquivo", style="cyan", no_wrap=True)
+    summary_table.add_column("Tipo", style="dim")
+    summary_table.add_column("Lidas", justify="right", style="yellow")
+    summary_table.add_column("Inseridas", justify="right", style="green")
+    summary_table.add_column("Status")
+    summary_table.add_column("Duração", justify="right")
+    
+    total_read = 0
+    total_inserted = 0
+    
+    for f in file_summary:
+        total_read += f.get("rows_read", 0)
+        total_inserted += f.get("rows_inserted", 0)
+        summary_table.add_row(
+            f["file"][:40] + "..." if len(f["file"]) > 40 else f["file"],
+            f["type"],
+            f"{f.get('rows_read', 0):,}",
+            f"{f.get('rows_inserted', 0):,}",
+            f["status"],
+            f"{f['start']} → {f['end']}"
+        )
+    
+    # Linha de totais
+    summary_table.add_section()
+    summary_table.add_row(
+        "[bold]TOTAL[/bold]", "",
+        f"[bold yellow]{total_read:,}[/bold yellow]",
+        f"[bold green]{total_inserted:,}[/bold green]",
+        "", ""
+    )
+    
+    console.print(summary_table)
+    logging.info(f"TOTAL: {total_read:,} linhas lidas, {total_inserted:,} inseridas")
 
 # ---------------------------------------------------------
 # MAIN
@@ -405,11 +452,19 @@ def main():
                 work_queue.put((priority, f_path, f_type))
 
             def refresh_ui():
-                # Tabela simples para UI
+                # Tabela com colunas de debug
                 table = Table(title="Status", expand=True)
-                table.add_column("Arquivo"); table.add_column("Status")
+                table.add_column("Arquivo", no_wrap=True)
+                table.add_column("Lidas", justify="right")
+                table.add_column("Inseridas", justify="right")
+                table.add_column("Status")
                 for f in file_summary[-10:]:
-                    table.add_row(f["file"], f["status"])
+                    table.add_row(
+                        f["file"][:35],
+                        f"{f.get('rows_read', 0):,}",
+                        f"{f.get('rows_inserted', 0):,}",
+                        f["status"]
+                    )
                 layout["body"].update(table)
 
             # Workers
@@ -433,7 +488,10 @@ def main():
         create_dictionaries(client)
         execute_sql_file(client, SETUP_VIEWS_FILE)
         
-        console.print("[bold green]ETL Finalizado com Sucesso![/bold green]")
+        # 4. Resumo Final
+        print_final_summary(file_summary)
+        
+        console.print("\n[bold green]✅ ETL Finalizado com Sucesso![/bold green]")
 
     except Exception as e:
         console.print(f"[bold red]Erro Fatal: {e}[/bold red]")
