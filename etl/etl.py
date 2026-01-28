@@ -13,8 +13,30 @@ from rich.panel import Panel
 from rich.layout import Layout
 import concurrent.futures
 import queue
+import logging
 
 console = Console()
+
+# ---------------------------------------------------------
+# LOGGING SETUP
+# ---------------------------------------------------------
+def setup_logging():
+    log_dir = os.path.join(os.path.dirname(__file__), 'logs')
+    os.makedirs(log_dir, exist_ok=True)
+    
+    timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    log_file = os.path.join(log_dir, f"etl_{timestamp}.log")
+    
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s - %(levelname)s - %(message)s',
+        handlers=[
+            logging.FileHandler(log_file, encoding='utf-8'),
+            # logging.StreamHandler() # Opcional: já temos o Rich para output no console
+        ]
+    )
+    console.print(f"[dim]Log file: {log_file}[/dim]")
+    return log_file
 
 
 # ---------------------------------------------------------
@@ -97,9 +119,12 @@ def get_client():
                 send_receive_timeout=300 # Aumentado para grandes inserts
             )
         except Exception as e:
-            print(f"Tentando reconectar... (Erro: {e})")
+            msg = f"Tentando reconectar... (Erro: {e})"
+            print(msg)
+            logging.warning(msg)
             time.sleep(5)
             retries -= 1
+    logging.critical("Falha crítica: Não foi possível conectar ao ClickHouse.")
     raise Exception("Falha crítica: Não foi possível conectar ao ClickHouse.")
 
 def init_db(client):
@@ -109,11 +134,14 @@ def init_db(client):
     script_path = os.path.join(os.path.dirname(__file__), SETUP_FILE)
     
     if not os.path.exists(script_path):
-        print(f"ERRO: Arquivo '{SETUP_FILE}' não encontrado!")
+        msg = f"ERRO: Arquivo '{SETUP_FILE}' não encontrado!"
+        print(msg)
+        logging.error(msg)
         print("Salve o SQL gerado anteriormente com este nome na mesma pasta do script.")
         sys.exit(1)
 
     print(f"Aplicando schema do arquivo: {SETUP_FILE}...")
+    logging.info(f"Aplicando schema do arquivo: {SETUP_FILE}...")
     with open(script_path, 'r', encoding='utf-8') as f:
         sql_content = f.read()
         # Remove comentários simples para evitar erros de parsing
@@ -153,6 +181,7 @@ def process_file(filepath, file_type, client, progress, overall_task, file_summa
         "status": "[yellow]Iniciando...[/yellow]"
     }
     file_summary.append(file_record)
+    logging.info(f"Iniciando processamento arquivo: {filename} ({file_type})")
     if ui_callback: ui_callback()
 
     # Lazy Frame: Não carrega nada na memória ainda
@@ -160,7 +189,7 @@ def process_file(filepath, file_type, client, progress, overall_task, file_summa
         filepath, 
         separator=';', 
         has_header=False, 
-        encoding='iso-8859-1', 
+        encoding='utf8', 
         quote_char='"',
         ignore_errors=True,
         truncate_ragged_lines=True,
@@ -174,22 +203,22 @@ def process_file(filepath, file_type, client, progress, overall_task, file_summa
             pl.col("column_2").alias("cnpj_ordem"),
             pl.col("column_3").alias("cnpj_dv"),
             pl.col("column_4").alias("identificador_matriz_filial"),
-            pl.col("column_5").str.strip_chars().alias("nome_fantasia"),
+            pl.col("column_5").str.strip_chars().fill_null("").alias("nome_fantasia"),
             pl.col("column_6").alias("situacao_cadastral"),
             pl.col("column_7").alias("data_situacao_cadastral"),
             pl.col("column_11").alias("data_inicio_atividade"),
             pl.col("column_12").alias("cnae_fiscal_principal"),
-            pl.col("column_14").str.strip_chars().alias("tipo_logradouro"),
-            pl.col("column_15").str.strip_chars().alias("logradouro"),
-            pl.col("column_16").str.strip_chars().alias("numero"),
-            pl.col("column_17").str.strip_chars().alias("complemento"),
-            pl.col("column_18").str.strip_chars().alias("bairro"),
-            pl.col("column_19").str.replace(r"\D", "").alias("cep"),
+            pl.col("column_14").str.strip_chars().fill_null("").alias("tipo_logradouro"),
+            pl.col("column_15").str.strip_chars().fill_null("").alias("logradouro"),
+            pl.col("column_16").str.strip_chars().fill_null("").alias("numero"),
+            pl.col("column_17").str.strip_chars().fill_null("").alias("complemento"),
+            pl.col("column_18").str.strip_chars().fill_null("").alias("bairro"),
+            pl.col("column_19").str.replace(r"\D", "").fill_null("").alias("cep"),
             pl.col("column_20").alias("uf"),
-            pl.col("column_21").alias("municipio"),
-            pl.col("column_22").alias("ddd1"),
-            pl.col("column_23").alias("telefone1"),
-            pl.col("column_28").str.strip_chars().alias("correio_eletronico")
+            pl.col("column_21").fill_null("").alias("municipio"),
+            pl.col("column_22").fill_null("").alias("ddd1"),
+            pl.col("column_23").fill_null("").alias("telefone1"),
+            pl.col("column_28").str.strip_chars().fill_null("").alias("correio_eletronico")
         ]).with_columns([
             pl.col("data_situacao_cadastral").str.to_date("%Y%m%d", strict=False),
             pl.col("data_inicio_atividade").str.to_date("%Y%m%d", strict=False)
@@ -198,7 +227,7 @@ def process_file(filepath, file_type, client, progress, overall_task, file_summa
     elif file_type == 'EMPRE':
         q = q.select([
             pl.col("column_1").alias("cnpj_basico"),
-            pl.col("column_2").str.strip_chars().alias("razao_social"),
+            pl.col("column_2").str.strip_chars().fill_null("").alias("razao_social"),
             pl.col("column_3").alias("natureza_juridica"),
             pl.col("column_5").alias("capital_social"),
             pl.col("column_6").alias("porte_empresa")
@@ -244,7 +273,7 @@ def process_file(filepath, file_type, client, progress, overall_task, file_summa
 
     # Execução do Streaming e Inserção
     try:
-        BATCH_SIZE = 100000 
+        BATCH_SIZE = 50000 
         processed_batches = q.collect(streaming=True)
         total_rows = processed_batches.height
         file_record["rows"] = total_rows
@@ -252,6 +281,7 @@ def process_file(filepath, file_type, client, progress, overall_task, file_summa
         if total_rows == 0:
             file_record["status"] = "[white]Vazio[/white]"
             file_record["end"] = datetime.now().strftime("%H:%M:%S")
+            logging.info(f"Arquivo vazio: {filename}")
             return
 
         file_task = progress.add_task(f"[cyan]{filename}", total=total_rows)
@@ -275,6 +305,7 @@ def process_file(filepath, file_type, client, progress, overall_task, file_summa
                     if attempt < max_retries - 1:
                         time.sleep(5)
                     else:
+                        logging.error(f"Erro ao inserir batch (tentativa {attempt+1}): {e}")
                         raise e
             
             progress.update(file_task, advance=batch.height)
@@ -282,6 +313,8 @@ def process_file(filepath, file_type, client, progress, overall_task, file_summa
             
         file_record["status"] = "[green]Sucesso[/green]"
         file_record["end"] = datetime.now().strftime("%H:%M:%S")
+        duration = datetime.now() - start_time
+        logging.info(f"Arquivo concluído: {filename}. Linhas: {total_rows}. Tempo: {duration}")
         if ui_callback: ui_callback()
         progress.remove_task(file_task)
         progress.update(overall_task, advance=1)
@@ -289,6 +322,7 @@ def process_file(filepath, file_type, client, progress, overall_task, file_summa
     except Exception as e:
         file_record["status"] = f"[red]Erro: {str(e)[:30]}...[/red]"
         file_record["end"] = datetime.now().strftime("%H:%M:%S")
+        logging.error(f"Erro processando {filename}: {e}", exc_info=True)
         if ui_callback: ui_callback()
 
 # ---------------------------------------------------------
@@ -300,6 +334,9 @@ def main():
         console.print(f"[red]Diretório de dados não encontrado: {abs_data_dir}[/red]")
         return
 
+    log_file = setup_logging()
+    logging.info("=== INICIANDO ETL PIPELINE ===")
+    
     client = get_client()
     init_db(client)
     
@@ -430,10 +467,14 @@ if __name__ == "__main__":
         main()
     except KeyboardInterrupt:
         console.print("\n[yellow]Interrompido pelo usuário.[/yellow]")
+        logging.warning("ETL interrompido pelo usuário.")
     except Exception as e:
-        console.print(f"\n[bold red]ERRO CRÍTICO: {e}[/bold red]")
+        msg = f"ERRO CRÍTICO NO MAIN: {e}"
+        console.print(f"\n[bold red]{msg}[/bold red]")
+        logging.critical(msg, exc_info=True)
         import traceback
         console.print(traceback.format_exc())
     finally:
+        logging.info("=== ETL PIPELINE ENCERRADO ===")
         console.print("\n" + "-"*40)
         input("Pressione Enter para sair...")
