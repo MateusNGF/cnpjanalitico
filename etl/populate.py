@@ -183,7 +183,7 @@ def create_dictionaries(client):
     # COMPLEX_KEY_HASHED: Apenas para chaves compostas
     dictionaries = [
         ("dict_cnae", "dim_cnae", "codigo String, descricao String", "codigo", "HASHED()"),
-        ("dict_municipios", "dim_municipios", "codigo FixedString(4), descricao String, uf FixedString(2)", "codigo", "HASHED()"),
+        ("dict_municipios", "dim_municipios", "codigo String, descricao String, codigo_ibge String, uf String", "codigo", "HASHED()"),
         ("dict_naturezas_juridicas", "dim_naturezas_juridicas", "codigo String, descricao String", "codigo", "HASHED()"),
         ("dict_motivos", "dim_motivos", "codigo String, descricao String", "codigo", "HASHED()"),
     ]
@@ -194,9 +194,12 @@ def create_dictionaries(client):
         ({columns})
         PRIMARY KEY {pk}
         SOURCE(CLICKHOUSE(
-            HOST '{host}' PORT {port}
-            USER '{user}' PASSWORD '{password}'
-            TABLE '{table_name}' DB '{DB_NAME}'
+            HOST '{host}' 
+            PORT {port}
+            USER '{user}' 
+            PASSWORD '{password}' 
+            DB '{DB_NAME}' 
+            TABLE '{table_name}'
             SECURE 1
         ))
         LIFETIME(MIN 0 MAX 3600)
