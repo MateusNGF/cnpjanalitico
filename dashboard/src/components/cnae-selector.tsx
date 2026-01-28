@@ -33,8 +33,6 @@ export function CnaeSelector() {
 
     const selected = mockCnaes.find((item) => item.value === cnae)
 
-    "".toString("")
-
     return (
         <Popover open={open} onOpenChange={setOpen}>
             <PopoverTrigger asChild>
@@ -85,7 +83,7 @@ export function CnaeSelector() {
                                     }}
                                 >
                                     <div className="flex flex-col">
-                                        <span className="font-medium text-xs whitespace-normal leading-tight">{item.label}</span>
+                                        <span className="font-medium text-xs">{item.label}</span>
                                         <span className="text-[10px] text-muted-foreground">{item.value}</span>
                                     </div>
                                     <Check
