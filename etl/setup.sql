@@ -36,25 +36,6 @@ CREATE TABLE IF NOT EXISTS cnpj_analytics.dim_cnae (
     INDEX idx_cnae_ngram descricao TYPE ngrambf_v1(4, 1024, 3, 0) GRANULARITY 1
 ) ENGINE = MergeTree() ORDER BY codigo;
 
--- Dicionários em Memória para Performance Instantânea
-CREATE DICTIONARY IF NOT EXISTS cnpj_analytics.dict_cnae (
-    codigo String,
-    descricao String
-)
-PRIMARY KEY codigo
-SOURCE(CLICKHOUSE(TABLE 'dim_cnae' DB 'cnpj_analytics' USER 'default'))
-LIFETIME(MIN 0 MAX 3600)
-LAYOUT(HASHED());
-
-CREATE DICTIONARY IF NOT EXISTS cnpj_analytics.dict_municipios (
-    codigo String,
-    descricao String,
-    codigo_ibge String
-)
-PRIMARY KEY codigo
-SOURCE(CLICKHOUSE(TABLE 'dim_municipios' DB 'cnpj_analytics' USER 'default'))
-LIFETIME(MIN 0 MAX 3600)
-LAYOUT(HASHED());
 
 CREATE TABLE IF NOT EXISTS cnpj_analytics.dim_motivos (
     codigo String,
