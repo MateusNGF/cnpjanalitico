@@ -1,0 +1,224 @@
+﻿Arquitetura de Eficiência: Estruturas de Dados e Otimização de Memória RAM no ClickHouse
+Resumo Executivo
+A eficiência operacional em sistemas de análise de dados em hiperescala, especificamente no ecossistema ClickHouse, não é meramente uma consequência da alocação de hardware robusto, mas sim o resultado de um design arquitetural meticuloso focado na gestão de memória. O problema de exaustão de memória RAM (Out of Memory - OOM) em ambientes OLAP (Online Analytical Processing) colunares é frequentemente sintomático de ineficiências estruturais na modelagem de dados e na estratégia de consulta, e não necessariamente de limitações da infraestrutura física. Este relatório técnico disseca as estruturas internas do ClickHouse, desde a representação de tipos primitivos em baixo nível até algoritmos complexos de junção e agregação probabilística, fornecendo um roteiro exaustivo para a mitigação do consumo de memória através da seleção de estruturas eficientes. A análise prioriza a compreensão dos mecanismos internos — como o motor de armazenamento MergeTree, a codificação de colunas e as estruturas de esboço (sketches) — demonstrando que a otimização de memória é intrinsecamente ligada à performance de latência e throughput.
+________________
+1. Fundamentos Arquiteturais e o Paradigma de Memória Colunar
+Para compreender as estratégias de otimização de memória no ClickHouse, é imperativo primeiro dissecar como o sistema gerencia dados na memória RAM em contraste com os bancos de dados orientados a linhas tradicionais. O ClickHouse opera sob um paradigma de armazenamento colunar, onde os dados são lidos e processados em blocos vetoriais, e não linha por linha. Essa distinção fundamental altera a dinâmica de consumo de memória, transformando o gargalo de acesso aleatório em um desafio de largura de banda de memória e eficiência de cache da CPU.
+1.1 Processamento Vetorial e Blocos de Dados
+No núcleo da execução do ClickHouse reside o conceito de "Bloco" (Block). Um bloco é a unidade atômica de processamento de dados, contendo arrays de colunas tipadas. Quando uma consulta é executada, o motor não recupera uma linha isolada; ele recupera milhares de valores de uma coluna específica, carregando-os contiguamente na memória.1 Esta arquitetura é projetada para maximizar a utilização dos caches L1, L2 e L3 da CPU, permitindo a execução de instruções SIMD (Single Instruction, Multiple Data).
+O impacto na memória RAM é duplo. Primeiro, o tamanho do bloco (configurável via max_block_size, com padrão de 65.536 linhas) dita a quantidade mínima de memória necessária para qualquer operação de leitura. Se as colunas forem largas (por exemplo, Strings longas ou Arrays complexos), um único bloco pode consumir megabytes de RAM. Segundo, durante operações de transformação ou filtragem, o ClickHouse frequentemente materializa colunas intermediárias. Se uma consulta envolve múltiplas etapas de cálculo, a pressão na memória aumenta linearmente com o número de colunas ativas e o tamanho do bloco.
+A eficiência vetorial depende de quão compactos esses dados podem permanecer na memória. Dados descomprimidos e tipos de dados ineficientes quebram a localidade espacial, forçando a CPU a buscar dados na RAM principal com mais frequência, o que, em sistemas de alta concorrência, satura a largura de banda da memória e aumenta a latência percebida, mesmo que a capacidade total da RAM não tenha sido excedida.2 Portanto, a "estrutura eficiente" no ClickHouse é aquela que maximiza a densidade de informação por byte de RAM, permitindo que mais dados residam nos caches mais rápidos do processador.
+1.2 O Papel do Índice Primário Esparso na RAM
+Diferentemente das árvores B+ densas encontradas em bancos de dados transacionais, que indexam cada linha individualmente, o ClickHouse emprega um índice primário esparso. Este índice não aponta para linhas, mas para "grânulos" (granules) de dados — blocos lógicos de dados comprimidos no disco. Por padrão, um grânulo contém 8.192 linhas. O índice primário armazena o valor da chave de ordenação para o primeiro registro de cada grânulo.3
+A implicação crítica para a memória RAM é que o índice primário deve caber inteiramente na memória. O ClickHouse carrega este índice na inicialização do servidor e o mantém residente para permitir a eliminação rápida de grânulos irrelevantes durante as consultas (data skipping). Se a chave primária for mal projetada — por exemplo, composta por colunas de altíssima cardinalidade e tamanho, como URLs longas ou strings aleatórias — o índice pode crescer a ponto de consumir gigabytes de RAM apenas para existir, reduzindo o espaço disponível para o processamento de consultas.5
+Uma estrutura eficiente de índice primário, portanto, prioriza colunas de baixa cardinalidade e tamanho fixo (como inteiros ou datas) no início da tupla de ordenação. Isso mantém o índice compacto e residente em memória, garantindo que a RAM seja utilizada para processar dados, e não apenas para localizar onde eles estão. A escolha das colunas da chave primária é, consequentemente, a primeira linha de defesa contra o desperdício de memória estrutural.
+________________
+2. Otimização de Esquema: Tipos de Dados e Eficiência de Baixo Nível
+A decisão mais consequente na arquitetura de uma tabela ClickHouse é a definição dos tipos de dados. Escolhas que parecem inócuas em outros sistemas, como permitir valores nulos por conveniência, têm custos desproporcionais em um banco de dados colunar de alta performance.
+2.1 A Sobrecarga Oculta de Nullable
+O modificador Nullable é frequentemente utilizado para representar a ausência de dados, mas sua implementação interna no ClickHouse carrega uma penalidade significativa de memória e processamento. Ao declarar uma coluna como Nullable(Int64), o sistema não utiliza um valor sentinela interno ou um bit de flag no próprio dado. Em vez disso, ele cria fisicamente duas colunas separadas no armazenamento e na memória.6
+1. Coluna de Valores: Armazena os dados reais. Para linhas onde o valor é NULL, um valor padrão (geralmente 0 ou string vazia) é gravado.
+2. Coluna de Máscara (Null Mask): Um array separado de UInt8 (inteiros de 8 bits) que atua como um mapa booleano, indicando se a linha correspondente é nula (1) ou não (0).
+Análise de Impacto na Memória: Para uma tabela com 1 bilhão de linhas, uma coluna Nullable adiciona imediatamente 1 GB de dados brutos (1 bilhão de bytes) apenas para a máscara de nulos. Durante a execução de consultas, ambas as colunas — dados e máscara — precisam ser carregadas nos buffers de memória. Isso efetivamente duplica a largura de banda de memória necessária para ler a coluna e aumenta a pegada de cache. Além disso, as operações vetorizadas da CPU são interrompidas pela necessidade de verificar a máscara condicionalmente para cada operação, impedindo otimizações SIMD eficientes e aumentando o tempo de residência dos dados na RAM.7
+Estratégia de Mitigação: A recomendação estrutural é evitar Nullable rigorosamente, exceto quando a distinção semântica entre "valor zero/vazio" e "valor nulo" for crítica para a lógica de negócio. A alternativa eficiente é o uso de Valores Sentinela 6:
+* Para numéricos, utilize 0, -1 ou o valor máximo do tipo.
+* Para strings, utilize uma string vazia ''.
+* Para datas, utilize a Era Unix (1970-01-01) ou uma data futurista (2100-01-01).
+Essa abordagem elimina a coluna de máscara, reduzindo o consumo de memória e armazenamento, e permite que o motor de execução processe os dados em velocidade máxima sem verificações condicionais de nulidade.
+2.2 LowCardinality: Dicionários Dinâmicos e Compressão Semântica
+Para colunas de String que exibem repetição frequente de valores (baixa cardinalidade), o tipo LowCardinality(String) oferece uma otimização estrutural poderosa. Diferente da compressão genérica (como LZ4), que ocorre no nível do bloco binário, LowCardinality altera a representação lógica dos dados em memória.8
+Mecanismo Interno:
+Quando uma coluna é definida como LowCardinality, o ClickHouse substitui as strings originais por índices numéricos (chaves) que apontam para um dicionário local mantido junto com a coluna.
+* Se o dicionário tiver menos de 10.000 valores únicos, o ClickHouse usa tipos inteiros pequenos (como UInt8 ou UInt16) para os índices.
+* Operações como GROUP BY, filtros (WHERE column = 'Value') e ordenações são executadas diretamente sobre os índices numéricos inteiros, em vez de comparar strings longas byte a byte.
+Eficiência de Memória:
+Considere uma coluna Status contendo valores como "Completed", "Pending", "Failed" em 1 bilhão de linhas.
+* String Padrão: Ocuparia ~10 GB de RAM (assumindo média de 10 bytes por string) durante o processamento.
+* LowCardinality: Ocuparia ~1 GB (usando índices de 1 byte), mais um dicionário minúsculo de alguns kilobytes.
+A redução no uso de RAM é de uma ordem de magnitude, o que libera recursos para operações mais complexas. No entanto, o uso indiscriminado pode ser prejudicial. Se a cardinalidade for alta (acima de 100.000 valores únicos, e especialmente na casa dos milhões), o dicionário se torna grande demais, e o custo de "indireção" (buscar o valor no dicionário) e a gestão de colisões de hash superam os benefícios da compressão. O ClickHouse pode até performar pior do que com strings normais devido ao overhead de construção e consulta de um dicionário gigante.8
+A tabela a seguir resume a decisão de uso entre String, LowCardinality e Enum:
+Característica
+	Enum
+	LowCardinality(String)
+	String Padrão
+	Mecanismo
+	Mapeamento Estático (Int -> String)
+	Dicionário Dinâmico
+	Dados Brutos
+	Flexibilidade
+	Baixa (ALTER necessário para novos valores)
+	Alta (Auto-adaptável)
+	Máxima
+	Uso de Memória
+	Mínimo (apenas Inteiros)
+	Baixo (Inteiros + Dicionário)
+	Alto
+	Cenário Ideal
+	Valores fixos (ex: Dias da Semana)
+	Valores repetitivos variáveis (ex: Cidades, User Agents)
+	Valores únicos/aleatórios (ex: UUIDs, Mensagens)
+	Limite Recomendado
+	< 500 valores
+	< 10.000 - 100.000 valores
+	> 100.000 valores
+	2.3 Otimização Numérica e Precisão
+O uso de tipos numéricos também exige precisão. Utilizar UInt64 para armazenar uma idade ou um status booleano é um desperdício de 7 bytes por linha. Embora a compressão em disco mitigue o armazenamento, na memória, os dados são frequentemente descomprimidos para seus tipos nativos durante a vetorização. Utilizar o menor tipo capaz de conter o dado (UInt8, UInt16, Float32) aumenta a densidade de dados nos registradores da CPU e reduz a pressão no barramento de memória.1
+________________
+3. Compressão e Codificação em Memória (Codecs)
+A compressão no ClickHouse não serve apenas para economizar espaço em disco; ela desempenha um papel vital na eficiência da memória e na performance de I/O. Dados altamente comprimidos significam menos leituras de disco e, crucialmente, uso mais eficiente do Page Cache do sistema operacional. No entanto, para serem processados, os dados devem ser descomprimidos. O ClickHouse introduz o conceito de Codecs, que são transformações aplicadas aos dados antes da compressão genérica (como LZ4 ou ZSTD), otimizando a estrutura dos dados para ocuparem menos espaço mesmo quando "descomprimidos" logicamente no pipeline de transformação, ou facilitando a compressão subsequente.10
+3.1 Codecs Delta e DoubleDelta para Séries Temporais
+Para dados de séries temporais ou sequenciais, os valores adjacentes frequentemente têm pouca variação. Armazenar o valor absoluto (ex: Timestamp Unix) repetidamente consome muitos bits.
+* Codec Delta: Armazena a diferença entre valores consecutivos:   . Se você tem timestamps a cada segundo (1600000001, 1600000002...), os deltas serão 1, 1, 1. Um número como 1 pode ser armazenado em muito menos bits do que um timestamp de 64 bits. Isso reduz a entropia dos dados, permitindo que o algoritmo de compressão subsequente (LZ4) atinja taxas de compressão extremas.
+* Codec DoubleDelta: Armazena a diferença dos deltas:   . Isso é ideal para sequências com inclinação constante. Se um sensor reporta dados em intervalos perfeitamente regulares, o Delta é constante, e o DoubleDelta é zero. Esta estrutura é extremamente eficiente para colunas de tempo em IoT e monitoramento, permitindo que bilhões de timestamps caibam em uma fração da memória usual.12
+O impacto na memória RAM é indireto, mas poderoso: ao reduzir o tamanho dos dados que precisam ser transferidos do disco para a memória e mantidos nos buffers de descompressão, Codecs eficientes aumentam o throughput efetivo da memória.
+3.2 Gorilla e T64: Especialização por Tipo
+   * Gorilla: Baseado no algoritmo do banco de dados Gorilla do Facebook, este codec é especializado para valores de ponto flutuante (Float). Ele calcula o XOR entre valores vizinhos. Em métricas de sensores ou financeiras onde a variação entre leituras é suave, o resultado do XOR contém muitos zeros, permitindo uma compressão bit-a-bit densa. Sem o Gorilla, floats são notoriamente difíceis de comprimir devido à sua representação binária complexa, consumindo memória excessiva.10
+   * T64: Projetado para inteiros, este codec corta os bits altos não utilizados de inteiros de 64 bits (ex: armazenar o valor 100 em um campo UInt64 desperdiça 57 bits de zeros). Ele transpõe a matriz de bits para agrupar os bits significativos, permitindo compressão eficiente sem alterar o tipo de dado subjacente.13
+A aplicação correta desses codecs (ex: CODEC(Delta, ZSTD)) resulta em blocos de dados que são descomprimidos e processados mais rapidamente, com menor tráfego de memória, prevenindo gargalos de largura de banda que muitas vezes são confundidos com falta de capacidade de RAM.
+________________
+4. Motores de Tabela Avançados: Pré-Agregação Estrutural
+A estratégia mais eficaz para evitar problemas de memória em consultas analíticas pesadas não é otimizar a consulta em si, mas evitar o processamento dos dados brutos no momento da leitura. A família de motores MergeTree do ClickHouse oferece variantes especializadas que realizam a agregação de dados incrementalmente em background, durante o processo de fusão (merge) das partes de dados no disco. Isso transforma o custo de memória de "Tempo de Consulta" para "Tempo de Ingestão/Merge".15
+4.1 AggregatingMergeTree: O Pilar da Eficiência de Memória
+O AggregatingMergeTree é a estrutura definitiva para cenários onde a cardinalidade dos dados brutos é alta, mas a cardinalidade das dimensões de análise é gerenciável. Em vez de armazenar bilhões de eventos individuais, este motor armazena o estado intermediário das funções de agregação.
+Mecanismo de Funcionamento:
+   1. Substituição de Linhas: Durante a operação de merge em background, o ClickHouse identifica linhas que possuem a mesma Chave de Ordenação (ORDER BY).
+   2. Colapso de Estados: Em vez de manter as linhas duplicadas, ele as colapsa em uma única linha, combinando os estados das funções de agregação definidas nas colunas.
+   3. Estados Binários: As colunas não armazenam valores simples (como um número), mas sim tipos AggregateFunction (ex: AggregateFunction(uniq, UInt64)). Esses tipos contêm a representação binária de estruturas de dados (como o esboço do HyperLogLog) que podem ser fundidas rapidamente.15
+Fluxo de Dados:
+   * Insert: Usa-se funções com sufixo -State (ex: INSERT INTO table SELECT uniqState(user_id)...). Isso gera o estado binário inicial.
+   * Select: Usa-se funções com sufixo -Merge (ex: SELECT uniqMerge(user_id_state)...). Isso toma os estados pré-agregados e finaliza o cálculo.
+Impacto na Memória:
+Imagine consultar o número de usuários únicos diários em um mês de dados com 100 bilhões de linhas.
+   * Abordagem Bruta: O ClickHouse precisaria ler 100 bilhões de IDs, carregá-los em uma Hash Table gigante na RAM para desduplicação. O consumo de memória seria massivo, provavelmente causando OOM.
+   * Abordagem AggregatingMergeTree: O ClickHouse lê apenas, por exemplo, 30 linhas (uma por dia), onde cada linha contém um pequeno estado HyperLogLog. A memória necessária é ínfima (alguns kilobytes), e a resposta é instantânea. O trabalho pesado foi diluído ao longo do tempo durante os merges em background.
+4.2 SummingMergeTree: Simplicidade para Métricas Aditivas
+Para casos onde a agregação necessária é apenas a soma (SUM), o SummingMergeTree oferece uma alternativa mais simples e leve.
+   * Automatismo: Ele soma automaticamente todas as colunas numéricas que não fazem parte da chave de ordenação.
+   * Sem Estados Complexos: Não requer o uso de -State ou -Merge nem tipos AggregateFunction. Os dados são armazenados como números normais.
+   * Limitação: Funciona apenas para somas. Não serve para MAX, MIN, AVG ou UNIQ.
+A eficiência de memória aqui advém da redução drástica no número de linhas (row count reduction). Se a chave de ordenação for (Data, CampanhaID) e houver 1 milhão de eventos para essa combinação, o SummingMergeTree eventualmente reduzirá esse milhão de linhas para apenas uma linha contendo a soma total. A consulta subsequente lerá apenas uma linha, com consumo de RAM virtualmente zero.16
+4.3 Tabela Comparativa de Motores de Agregação
+Recurso
+	SummingMergeTree
+	AggregatingMergeTree
+	MergeTree Padrão
+	Agregação Suportada
+	Apenas SUM (+)
+	Qualquer (uniq, quantile, avg, etc.)
+	Nenhuma (armazena bruto)
+	Complexidade de Uso
+	Baixa (Transparente)
+	Alta (Tipos State/Merge)
+	Baixa
+	Redução de Linhas
+	Alta (para chaves repetidas)
+	Alta (para chaves repetidas)
+	Nenhuma
+	Uso de Memória (Leitura)
+	Mínimo (Lê dados pré-somados)
+	Mínimo (Lê estados pré-calculados)
+	Máximo (Processa tudo)
+	Overhead de Ingestão
+	Médio (Merge soma valores)
+	Alto (Merge combina estruturas complexas)
+	Baixo
+	________________
+5. Estruturas Probabilísticas (Sketches): Trocando Precisão por Memória
+Em big data, a precisão absoluta (100.000.000 vs 100.000.001) é frequentemente menos valiosa do que a eficiência de recursos. O ClickHouse implementa estruturas de dados probabilísticas, conhecidas como "Sketches", que garantem um limite superior fixo de consumo de memória, independentemente do volume de dados processados.
+5.1 Contagem de Distintos: HyperLogLog e a Família uniq
+A operação COUNT(DISTINCT) é notoriamente cara em memória. Para garantir a exatidão (uniqExact), o banco de dados deve manter um Hash Set contendo todos os valores únicos encontrados. Se a cardinalidade for de 500 milhões de usuários, esse Hash Set excederá facilmente a RAM de um servidor comum.6
+A Solução uniqCombined:
+O ClickHouse recomenda o uso de funções aproximadas baseadas no algoritmo HyperLogLog (HLL).
+   * uniq: Usa amostragem adaptativa. É rápido e razoavelmente preciso.
+   * uniqCombined: É a estrutura mais eficiente em memória. Ela utiliza uma abordagem híbrida:
+   1. Array: Para cardinais muito baixos, armazena os hashes em um array simples.
+   2. Hash Table: Para cardinais médios, promove para uma hash table.
+   3. HyperLogLog: Para cardinais altos, transiciona para uma estrutura HLL com correção de viés.
+Eficiência de Memória: O HLL ocupa um espaço fixo na memória. No ClickHouse, a precisão padrão (HLL_precision = 17) resulta em um estado de aproximadamente 96 KiB, independentemente se a tabela tem 1 milhão ou 1 trilhão de linhas únicas. Isso elimina completamente o risco de OOM em agregações de contagem distinta, ao custo de uma margem de erro desprezível (tipicamente < 1-2%).19
+Para cardinais que excedem o limite de 32 bits (~4 bilhões), deve-se usar uniqCombined64, que mantém a mesma eficiência estrutural mas utiliza hashes de 64 bits para evitar colisões.20
+5.2 Quantis e Distribuição: T-Digest
+Calcular a mediana (quantile(0.5)) ou o percentil 99 exato exige ordenação total dos dados, o que é inviável em memória para grandes volumes.
+   * quantile (Reservoir Sampling): Usa um algoritmo de amostragem de reservatório. Ocupa memória fixa, mas a precisão depende do tamanho do reservatório e pode ser baixa nas caudas da distribuição (P99, P99.9).
+   * quantileTDigest: Implementa a estrutura T-Digest. Esta estrutura cria "centroides" ponderados que aglomeram valores próximos. Ela é extremamente precisa nas extremidades da distribuição (caudas) e seu consumo de memória cresce logaritmicamente com o número de valores (O(log N)), mantendo-se muito compacto. Para SLAs de latência e métricas de performance, quantileTDigest é a escolha superior para balancear precisão e memória.22
+________________
+6. Otimização de JOINs e Estratégias de Execução
+As junções (JOINs) são o calcanhar de Aquiles da memória em sistemas distribuídos. O algoritmo padrão do ClickHouse é o Hash Join, que carrega a tabela do lado direito (Right Table) inteiramente na memória RAM para construir uma hash table de busca.
+6.1 Otimização Algorítmica de JOIN
+Se a tabela da direita for maior que a memória disponível, a consulta falhará. A primeira regra é sempre posicionar a tabela menor à direita (Grande LEFT JOIN Pequena). No entanto, quando ambas são grandes, estruturas alternativas são necessárias.
+Grace Hash Join:
+Este algoritmo transforma um problema de memória em um problema de disco.
+   * Mecanismo: O ClickHouse particiona as linhas de ambas as tabelas em "baldes" (buckets) baseados no hash da chave de junção. Em vez de carregar tudo na RAM, ele processa um par de baldes por vez. Se um balde não couber na memória, ele é temporariamente escrito no disco (spill-to-disk).
+   * Configuração: Pode ser ativado via SETTINGS join_algorithm = 'grace_hash'. O parâmetro grace_hash_join_initial_buckets define a fragmentação. Isso permite realizar JOINs que excedem a RAM física total, sacrificando latência por estabilidade.25
+Full Sorting Merge Join: Se os dados já estiverem fisicamente ordenados pela chave de junção no disco (devido à chave primária do MergeTree), o full_sorting_merge_join pode realizar a junção lendo streams ordenados de ambas as tabelas, com uso de memória extremamente baixo e sem necessidade de hash tables. Este é o cenário ideal, mas requer um design de esquema que antecipe os padrões de junção.25
+6.2 Dicionários: A Alternativa Estruturada ao JOIN
+Para enriquecimento de dados (ex: ID -> Nome), Dicionários são superiores a JOINs. Eles são estruturas de dados residentes em memória, otimizadas para lookup aleatório. A eficiência de memória do dicionário depende crucialmente do seu Layout 28:
+   * Flat (Array Plano): O mais rápido e eficiente. Usa um array indexado diretamente pelo ID.
+   * Requisito: Chaves devem ser UInt64 e densas (sequenciais).
+   * Risco de Memória: Se os IDs forem esparsos (ex: tem ID 1 e ID 1.000.000, mas nada no meio), o array alocará 1 milhão de slots, desperdiçando RAM.
+   * Hashed (Hash Table): Usa uma tabela hash.
+   * Uso: Para chaves String ou IDs numéricos esparsos.
+   * Custo: Tem overhead de memória para os ponteiros e estrutura da hash table, consumindo mais RAM que o Flat para a mesma quantidade de dados.
+   * Complex Key Hashed: Para chaves compostas. Consome significativamente mais memória devido ao armazenamento das chaves combinadas.
+   * Cache / SSD Cache: Se o dicionário não couber na RAM, layouts de cache mantêm apenas os itens mais acessados (LRU) na memória, buscando o restante na fonte ou em SSD. É a solução de último recurso para dimensões gigantescas.30
+6.3 Configurações de Execução e Spill-to-Disk
+Mesmo com estruturas otimizadas, picos de uso podem ocorrer. O ClickHouse possui mecanismos de segurança para "transbordar" operações para o disco, evitando o crash da consulta.
+   * max_bytes_before_external_group_by: Define o limite de RAM para a fase de agregação. Se excedido, o ClickHouse despeja estados parciais no disco e os funde posteriormente. Essencial para GROUP BY em colunas de alta cardinalidade.
+   * max_bytes_before_external_sort: Similar, mas para operações de ORDER BY. Impede que ordenações massivas estourem a memória.31
+   * join_use_nulls: Uma configuração perigosa. Se definida como 1 (padrão em alguns clientes SQL), força o resultado de JOINs a ser Nullable, adicionando colunas de máscara e overhead de memória. Recomenda-se manter 0 (padrão do ClickHouse), onde valores não encontrados retornam o padrão do tipo (0 ou vazio), economizando memória substancial.33
+________________
+7. Materialized Views: A Estratégia de "Push"
+As Materialized Views (MVs) no ClickHouse não são caches estáticos, mas gatilhos de inserção (Insert Triggers) que transformam dados em tempo real. Elas são a ferramenta arquitetural mais potente para evitar problemas de memória de leitura.
+Mecanismo de Eficiência:
+Ao invés de executar agregações pesadas sobre a tabela bruta a cada consulta, a MV calcula a agregação no momento da inserção do bloco de dados. O resultado é escrito em uma tabela de destino (geralmente uma AggregatingMergeTree).
+   * Consulta na Bruta: Lê 100 milhões de linhas -> Hash Table gigante na RAM -> Resultado.
+   * Consulta na MV: Lê 1.000 linhas pré-agregadas -> Hash Table minúscula -> Resultado.
+Essa abordagem desloca o consumo de memória do momento crítico da consulta (onde a latência importa e a concorrência é alta) para o momento da ingestão (que é controlado e assíncrono), garantindo previsibilidade no uso de RAM.35
+________________
+8. Conclusão e Recomendações Práticas
+A gestão de memória no ClickHouse é um exercício de engenharia de dados que exige o abandono de práticas herdadas de bancos transacionais. A eficiência não vem de "tunar" um parâmetro mágico, mas de escolher as estruturas de dados corretas que se alinham com a arquitetura vetorial e colunar do sistema.
+Roteiro de Implementação para Eficiência de RAM:
+   1. Auditoria de Tipos: Elimine Nullable em favor de valores padrão. Converta Strings repetitivas em LowCardinality. Utilize os menores tipos numéricos possíveis.
+   2. Compressão Semântica: Aplique Codecs Delta e DoubleDelta em colunas de tempo e métricas sequenciais.
+   3. Pré-Agregação: Migre consultas pesadas de dashboards para AggregatingMergeTree alimentadas por Materialized Views.
+   4. Agregação Probabilística: Substitua contagens exatas por uniqCombined e percentis exatos por quantileTDigest em relatórios analíticos.
+   5. Estratégia de JOIN: Configure grace_hash como fallback para consultas complexas e prefira Dicionários Flat para enriquecimento de alta performance.
+   6. Rede de Segurança: Configure max_bytes_before_external_group_by para 50% da memória disponível da query, garantindo que consultas monstros degradem para disco em vez de falhar por OOM.
+Ao adotar estas estruturas, o sistema transita de um modelo de consumo de memória linear (instável e caro) para um modelo logarítmico ou constante (estável e eficiente), permitindo escalar o volume de dados sem a necessidade proporcional de expansão de hardware.
+Referências citadas
+   1. ClickHouse architecture: 4 key components and optimization tips - NetApp Instaclustr, acessado em janeiro 28, 2026, https://www.instaclustr.com/education/clickhouse/clickhouse-architecture-4-key-components-and-optimization-tips/
+   2. Optimizing ClickHouse for Intel's ultra-high core count processors, acessado em janeiro 28, 2026, https://clickhouse.com/blog/optimizing-clickhouse-intel-high-core-count-cpu
+   3. A simple guide to ClickHouse query optimization: part 1, acessado em janeiro 28, 2026, https://clickhouse.com/blog/a-simple-guide-to-clickhouse-query-optimization-part-1
+   4. Primary indexes | ClickHouse Docs, acessado em janeiro 28, 2026, https://clickhouse.com/docs/primary-indexes
+   5. A Practical Introduction to Primary Indexes in ClickHouse, acessado em janeiro 28, 2026, https://clickhouse.com/docs/guides/best-practices/sparse-primary-indexes
+   6. The definitive guide to ClickHouse query optimization (2026) | Engineering, acessado em janeiro 28, 2026, https://clickhouse.com/resources/engineering/clickhouse-query-optimisation-definitive-guide
+   7. ClickHouse Performance Optimization: Best Practices for Ultra-Fast Analytics | by Girff, acessado em janeiro 28, 2026, https://girff.medium.com/clickhouse-performance-optimization-best-practices-for-ultra-fast-analytics-567afb976db1
+   8. LowCardinality(T) | ClickHouse Docs, acessado em janeiro 28, 2026, https://clickhouse.com/docs/sql-reference/data-types/lowcardinality
+   9. ClickHouse: Understanding LowCardinality vs Enum Columns | by sathish kumar srinivasan, acessado em janeiro 28, 2026, https://medium.com/@sathishdba/clickhouse-understanding-lowcardinality-vs-enum-columns-9c09b26467d9
+   10. Optimizing ClickHouse with Schemas and Codecs, acessado em janeiro 28, 2026, https://clickhouse.com/blog/optimize-clickhouse-codecs-compression-schema
+   11. Compression in ClickHouse, acessado em janeiro 28, 2026, https://clickhouse.com/docs/data-compression/compression-in-clickhouse
+   12. CREATE TABLE | ClickHouse Docs, acessado em janeiro 28, 2026, https://clickhouse.com/docs/sql-reference/statements/create/table
+   13. New Encodings to Improve ClickHouse® Efficiency - Altinity, acessado em janeiro 28, 2026, https://altinity.com/blog/2019-7-new-encodings-to-improve-clickhouse
+   14. Codecs | Altinity® Knowledge Base for ClickHouse®, acessado em janeiro 28, 2026, https://kb.altinity.com/altinity-kb-schema-design/codecs/
+   15. AggregatingMergeTree table engine | ClickHouse Docs, acessado em janeiro 28, 2026, https://clickhouse.com/docs/engines/table-engines/mergetree-family/aggregatingmergetree
+   16. Table Engines | ClickHouse Docs, acessado em janeiro 28, 2026, https://clickhouse.com/docs/engines/table-engines
+   17. SummingMergeTree table engine | ClickHouse Docs, acessado em janeiro 28, 2026, https://clickhouse.com/docs/engines/table-engines/mergetree-family/summingmergetree
+   18. Difference between SummingMergeTree and AggregatingMergeTree · Issue #975 - GitHub, acessado em janeiro 28, 2026, https://github.com/ClickHouse/clickhouse-docs/issues/975
+   19. uniqCombined | ClickHouse Docs, acessado em janeiro 28, 2026, https://clickhouse.com/docs/sql-reference/aggregate-functions/reference/uniqcombined
+   20. uniqCombined64 | ClickHouse Docs, acessado em janeiro 28, 2026, https://clickhouse.com/docs/sql-reference/aggregate-functions/reference/uniqcombined64
+   21. Uniq--ByteHouse-Byteplus, acessado em janeiro 28, 2026, https://docs.byteplus.com/en/docs/bytehouse/uniq-function
+   22. ClickHouse quantileTDigest Function - Pulse, acessado em janeiro 28, 2026, https://pulse.support/kb/clickhouse-quantiletdigest-function
+   23. quantileTDigest | ClickHouse Docs, acessado em janeiro 28, 2026, https://clickhouse.com/docs/sql-reference/aggregate-functions/reference/quantiletdigest
+   24. quantileTiming | ClickHouse Docs, acessado em janeiro 28, 2026, https://clickhouse.com/docs/sql-reference/aggregate-functions/reference/quantiletiming
+   25. Using JOINs in ClickHouse, acessado em janeiro 28, 2026, https://clickhouse.com/docs/guides/joining-tables
+   26. ClickHouse Joins Under the Hood - Hash Join, Parallel Hash Join, Grace Hash Join, acessado em janeiro 28, 2026, https://clickhouse.com/blog/clickhouse-fully-supports-joins-hash-joins-part2
+   27. Minimize and optimize JOINs | ClickHouse Docs, acessado em janeiro 28, 2026, https://clickhouse.com/docs/best-practices/minimize-optimize-joins
+   28. Dictionaries | ClickHouse Docs, acessado em janeiro 28, 2026, https://clickhouse.com/docs/sql-reference/dictionaries
+   29. Using Dictionaries to Accelerate Queries - ClickHouse, acessado em janeiro 28, 2026, https://clickhouse.com/blog/faster-queries-dictionaries-clickhouse
+   30. ClickHouse® Dictionaries Explained - Altinity, acessado em janeiro 28, 2026, https://altinity.com/blog/dictionaries-explained
+   31. Restrictions on query complexity | ClickHouse Docs, acessado em janeiro 28, 2026, https://clickhouse.com/docs/operations/settings/query-complexity
+   32. GROUP BY Clause | ClickHouse Docs, acessado em janeiro 28, 2026, https://clickhouse.com/docs/sql-reference/statements/select/group-by
+   33. ClickHouse LEFT JOINs: Why join_use_nulls Matters - DEV Community, acessado em janeiro 28, 2026, https://dev.to/ranjbaryshahab/clickhouse-left-joins-why-joinusenulls-matters-1h9f
+   34. ClickHouse join_use_nulls Setting: Explained - Pulse, acessado em janeiro 28, 2026, https://pulse.support/kb/clickhouse-join-use-nulls-setting
+   35. Use Materialized Views | ClickHouse Docs, acessado em janeiro 28, 2026, https://clickhouse.com/docs/best-practices/use-materialized-views
+   36. ClickHouse® materialized view: how to materialize data in ClickHouse® - Tinybird, acessado em janeiro 28, 2026, https://www.tinybird.co/blog/clickhouse-create-materialized-view-example
+   37. Incremental materialized view | ClickHouse Docs, acessado em janeiro 28, 2026, https://clickhouse.com/docs/materialized-view/incremental-materialized-view
