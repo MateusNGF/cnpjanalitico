@@ -233,7 +233,7 @@ def process_file(filepath, file_type, client, progress, overall_task, file_summa
         filepath, 
         separator=';', 
         has_header=False,
-        encoding='utf8-lossy', 
+        encoding='utf8-lossy',  # latin1 causes null values in Polars
         quote_char='"', 
         ignore_errors=True, 
         truncate_ragged_lines=True, 

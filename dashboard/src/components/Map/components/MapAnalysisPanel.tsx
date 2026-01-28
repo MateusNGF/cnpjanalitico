@@ -36,7 +36,7 @@ export const MapAnalysisPanel = memo(({ stats }: MapAnalysisPanelProps) => {
                         </div>
 
                         {/* Porte Distribution */}
-                        <div className="space-y-4">
+                        {/* <div className="space-y-4">
                             <div className="flex h-1.5 w-full bg-white/5 rounded-full overflow-hidden">
                                 {stats?.porteDist?.map((p: any, i: number) => {
                                     const colors = {
@@ -77,7 +77,7 @@ export const MapAnalysisPanel = memo(({ stats }: MapAnalysisPanelProps) => {
                                     );
                                 })}
                             </div>
-                        </div>
+                        </div> */}
                     </div>
 
                     <div className="h-px bg-white/5"></div>
@@ -93,7 +93,7 @@ export const MapAnalysisPanel = memo(({ stats }: MapAnalysisPanelProps) => {
                             {stats?.topCnaes?.map((cnae: any, idx: number) => (
                                 <div key={idx} className="flex flex-col gap-1 group/item">
                                     <div className="flex items-center justify-between text-[11px]">
-                                        <span className="text-zinc-400 font-bold truncate pr-4 group-hover/item:text-white transition-colors">
+                                        <span className="text-zinc-400 font-bold pr-4 group-hover/item:text-white transition-colors whitespace-normal leading-tight">
                                             {idx + 1}. {cnae.label}
                                         </span>
                                         <span className="text-orange-400/80 font-mono font-bold">{formatNumber(cnae.value)}</span>

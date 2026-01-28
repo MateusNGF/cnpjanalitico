@@ -55,7 +55,7 @@ export const QUERIES = {
       AND (label ILIKE {search:String} OR cnae_fiscal_principal ILIKE {search:String})
     GROUP BY label
     ORDER BY value DESC
-    LIMIT 10
+    LIMIT 5
   `,
 
   // 2. Trend Chart (Market Dynamics)
@@ -72,13 +72,15 @@ export const QUERIES = {
   `,
 
   // 3. Map Distribution (Discovery Engine)
+  // Using direct JOIN instead of dictionary to avoid ClickHouse Cloud dict issues
   MAP_DENSITY: `
     SELECT 
-        dictGet('cnpj_analytics.dict_municipios', 'codigo_ibge', municipio) as id,
-        dictGet('cnpj_analytics.dict_municipios', 'descricao', municipio) as nome,
-        sum(total) as value
-    FROM mv_resumo_municipio
-    WHERE uf = {uf:String}
+        m.codigo_ibge as id,
+        m.descricao as nome,
+        sum(mv.total) as value
+    FROM mv_resumo_municipio mv
+    JOIN dim_municipios m ON mv.municipio = m.codigo
+    WHERE mv.uf = {uf:String}
     GROUP BY id, nome
   `,
 

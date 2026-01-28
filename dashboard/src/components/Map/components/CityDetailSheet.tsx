@@ -232,7 +232,7 @@ export const CityDetailSheet = ({ selectedCity, uf, onClose }: CityDetailSheetPr
                                                     <div className="w-8 h-8 rounded-lg bg-zinc-800 flex items-center justify-center shrink-0">
                                                         <Activity className="w-4 h-4 text-zinc-500 group-hover:text-blue-400 transition-colors" />
                                                     </div>
-                                                    <span className="text-xs font-bold text-zinc-300 truncate">{cnae.label}</span>
+                                                    <span className="text-xs font-bold text-zinc-300 whitespace-normal leading-tight">{cnae.label}</span>
                                                 </div>
                                                 <div className="text-right">
                                                     <span className="text-xs font-black text-white">{formatNumber(cnae.value)}</span>
