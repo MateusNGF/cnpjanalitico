@@ -2,6 +2,9 @@ package main
 
 import (
 	"archive/zip"
+	"context"
+	"encoding/json"
+	"flag"
 	"fmt"
 	"io"
 	"net/http"
@@ -18,86 +21,157 @@ import (
 
 const (
 	BaseURL    = "https://arquivos.receitafederal.gov.br/dados/cnpj/dados_abertos_cnpj/2026-01/"
-	MaxWorkers = 3 // Reduzido para evitar bloqueios de IP/Rate limit
-	MaxRetries = 5
+	IBGEAPIURL = "https://servicodados.ibge.gov.br/api/v2/cnae/subclasses"
 )
 
-var (
-	OutputDir = getEnv("OUTPUT_DIR", `W:\app\dados_temp`)
-)
-
-var targetFiles = []string{
-	"ESTABELE", "EMPRE", "SOCIO", "CNAE", "MUNIC", "MOTI", "NATJU", "SIMPLES", "NATUREZA",
+// Config holds the application configuration
+type Config struct {
+	OutputDir  string
+	MaxWorkers int
+	MaxRetries int
 }
 
-func getEnv(key, fallback string) string {
-	if value, ok := os.LookupEnv(key); ok {
-		return value
-	}
-	return fallback
+// Downloader manages the download process
+type Downloader struct {
+	cfg         Config
+	targetFiles []string
+	startTime   time.Time
+}
+
+// CNAEItem represents an item from the IBGE API
+type CNAEItem struct {
+	ID        string `json:"id"`
+	Descricao string `json:"descricao"`
 }
 
 func main() {
-	fmt.Println("--- CNPJ Downloader V4 (Robust Edition) ---")
+	// Parse Flags
+	outputDir := flag.String("output", getEnv("OUTPUT_DIR", `W:\app\dados_temp`), "Directory to save downloaded files")
+	workers := flag.Int("workers", 3, "Maximum number of concurrent downloads")
+	retries := flag.Int("retries", 5, "Maximum number of retries for failed downloads")
+	flag.Parse()
 
-	if err := os.MkdirAll(OutputDir, 0755); err != nil {
-		fmt.Printf("Erro crítico ao criar diretório: %v\n", err)
+	cfg := Config{
+		OutputDir:  *outputDir,
+		MaxWorkers: *workers,
+		MaxRetries: *retries,
+	}
+
+	app := &Downloader{
+		cfg: cfg,
+		targetFiles: []string{
+			"ESTABELE", "EMPRE", "SOCIO", "MUNIC", "MOTI", "NATJU", "SIMPLES", "NATUREZA",
+		},
+		startTime: time.Now(),
+	}
+
+	app.Run()
+}
+
+func (d *Downloader) Run() {
+	d.printHeader()
+
+	if err := os.MkdirAll(d.cfg.OutputDir, 0755); err != nil {
+		fmt.Printf("❌ Critical Error: Could not create output directory: %v\n", err)
 		os.Exit(1)
 	}
 
-	files, err := getFilesFromURL(BaseURL)
+	// 1. Download CNAEs
+	d.downloadCNAEs()
+
+	// 2. Discover Files
+	files, err := d.getFilesFromURL(BaseURL)
 	if err != nil {
-		fmt.Printf("Erro ao listar arquivos no servidor: %v\n", err)
+		fmt.Printf("❌ Error listing files from server: %v\n", err)
 		os.Exit(1)
 	}
 
 	if len(files) == 0 {
-		fmt.Println("Nenhum arquivo zip encontrado na URL informada.")
+		fmt.Println("⚠️  No matching ZIP files found.")
 		return
 	}
 
-	fmt.Printf("Encontrados %d arquivos para download e extração.\n", len(files))
+	fmt.Printf("📦 Found %d files to process.\n", len(files))
 
-	p := mpb.New(mpb.WithWidth(60))
+	// 3. Process Files (Download & Extract)
+	d.processFiles(files)
 
-	var wg sync.WaitGroup
-	semaphore := make(chan struct{}, MaxWorkers)
-
-	for _, filename := range files {
-		wg.Add(1)
-		go func(fname string) {
-			defer wg.Done()
-			semaphore <- struct{}{}
-			defer func() { <-semaphore }()
-
-			// Step 1: Download with Retries
-			localPath, err := downloadWithRetry(p, BaseURL+fname, fname)
-			if err != nil {
-				fmt.Printf("\n[ERRO] Falha definitiva no download de %s: %v\n", fname, err)
-				return
-			}
-
-			// Step 2: Extract
-			if err := extractZip(p, localPath); err != nil {
-				fmt.Printf("\n[ERRO] Falha na extração de %s: %v\n", fname, err)
-			}
-		}(filename)
-	}
-
-	wg.Wait()
-	p.Wait()
-	fmt.Println("\n--- Processo concluído com sucesso! ---")
+	d.printSummary(len(files))
 }
 
-func getFilesFromURL(url string) ([]string, error) {
-	resp, err := http.Get(url)
+func (d *Downloader) printHeader() {
+	fmt.Println("==================================================")
+	fmt.Println("       CNPJ Analytics - Data Downloader v5.1      ")
+	fmt.Println("==================================================")
+	fmt.Printf("📂 Output Dir : %s\n", d.cfg.OutputDir)
+	fmt.Printf("🚀 Workers    : %d\n", d.cfg.MaxWorkers)
+	fmt.Println("--------------------------------------------------")
+}
+
+func (d *Downloader) printSummary(totalFiles int) {
+	duration := time.Since(d.startTime)
+	fmt.Println("\n==================================================")
+	fmt.Println("               Process Completed                  ")
+	fmt.Println("==================================================")
+	fmt.Printf("⏱️  Total Time : %s\n", duration.Round(time.Second))
+	fmt.Printf("✅ Files processed: %d\n", totalFiles)
+	fmt.Println("==================================================")
+}
+
+func (d *Downloader) downloadCNAEs() {
+	fmt.Println("\n📡 [IBGE] Fetching CNAE data...")
+	start := time.Now()
+
+	client := &http.Client{Timeout: 60 * time.Second}
+	resp, err := client.Get(IBGEAPIURL)
+	if err != nil {
+		fmt.Printf("⚠️  [IBGE] Failed to connect: %v\n", err)
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		fmt.Printf("⚠️  [IBGE] API returned status %d\n", resp.StatusCode)
+		return
+	}
+
+	var cnaes []CNAEItem
+	if err := json.NewDecoder(resp.Body).Decode(&cnaes); err != nil {
+		fmt.Printf("⚠️  [IBGE] Failed to parse JSON: %v\n", err)
+		return
+	}
+
+	csvPath := filepath.Join(d.cfg.OutputDir, "F.K03200$Z.D26014.CNAECSV")
+	file, err := os.Create(csvPath)
+	if err != nil {
+		fmt.Printf("⚠️  [IBGE] Failed to create file: %v\n", err)
+		return
+	}
+	defer file.Close()
+
+	count := 0
+	for _, cnae := range cnaes {
+		desc := strings.ReplaceAll(cnae.Descricao, "\"", "\"\"")
+		line := fmt.Sprintf("%s;%s\n", cnae.ID, desc)
+		if _, err := file.WriteString(line); err == nil {
+			count++
+		}
+	}
+
+	fmt.Printf("✅ [IBGE] Saved %d CNAEs in %v (%s)\n", count, time.Since(start).Round(time.Millisecond), csvPath)
+}
+
+func (d *Downloader) getFilesFromURL(url string) ([]string, error) {
+	fmt.Println("🔍 Scanning Receita Federal repository...")
+	client := &http.Client{Timeout: 30 * time.Second}
+	resp, err := client.Get(url)
 	if err != nil {
 		return nil, err
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != 200 {
-		return nil, fmt.Errorf("servidor retornou status %d", resp.StatusCode)
+		return nil, fmt.Errorf("server returned status %d", resp.StatusCode)
 	}
 
 	doc, err := goquery.NewDocumentFromReader(resp.Body)
@@ -110,7 +184,7 @@ func getFilesFromURL(url string) ([]string, error) {
 		href, _ := s.Attr("href")
 		hrefUpper := strings.ToUpper(href)
 		if strings.HasSuffix(strings.ToLower(href), ".zip") {
-			for _, target := range targetFiles {
+			for _, target := range d.targetFiles {
 				if strings.Contains(hrefUpper, target) {
 					files = append(files, href)
 					break
@@ -118,71 +192,121 @@ func getFilesFromURL(url string) ([]string, error) {
 			}
 		}
 	})
-
 	return files, nil
 }
 
-func downloadWithRetry(p *mpb.Progress, url, filename string) (string, error) {
-	var err error
-	for i := 1; i <= MaxRetries; i++ {
-		path, dErr := downloadFile(p, url, filename)
-		if dErr == nil {
-			return path, nil
-		}
-		err = dErr
-		fmt.Printf("\n[RETRY %d/%d] %s: %v\n", i, MaxRetries, filename, err)
-		time.Sleep(time.Duration(i*2) * time.Second)
+func (d *Downloader) processFiles(files []string) {
+	p := mpb.New(mpb.WithWidth(60), mpb.WithRefreshRate(180*time.Millisecond))
+	var wg sync.WaitGroup
+	semaphore := make(chan struct{}, d.cfg.MaxWorkers)
+
+	for _, filename := range files {
+		wg.Add(1)
+		go func(fname string) {
+			defer wg.Done()
+			semaphore <- struct{}{}
+			defer func() { <-semaphore }()
+
+			// 1. Download
+			localPath, err := d.downloadWithRetry(p, BaseURL+fname, fname)
+			if err != nil {
+				// Error is already logged in downloadWithRetry logic if final failure
+				return
+			}
+
+			// 2. Extract
+			if err := d.extractZip(p, localPath); err != nil {
+				// Error logged inside extractZip
+				return
+			}
+
+			// 3. Remove ZIP
+			os.Remove(localPath)
+
+		}(filename)
 	}
-	return "", err
+
+	wg.Wait()
+	p.Wait()
 }
 
-func downloadFile(p *mpb.Progress, url, filename string) (string, error) {
-	destPath := filepath.Join(OutputDir, filename)
+func (d *Downloader) downloadWithRetry(p *mpb.Progress, url, filename string) (string, error) {
+	destPath := filepath.Join(d.cfg.OutputDir, filename)
 
-	// Se o arquivo já existe e tem tamanho > 0, pulamos
+	// Skip if exists and has size (naive check, but useful)
 	if info, err := os.Stat(destPath); err == nil && info.Size() > 0 {
 		return destPath, nil
 	}
 
-	resp, err := http.Get(url)
+	var lastErr error
+	for i := 1; i <= d.cfg.MaxRetries; i++ {
+		err := d.downloadFile(p, url, filename, destPath)
+		if err == nil {
+			return destPath, nil
+		}
+		lastErr = err
+
+		// Create a temporary error bar or log to avoid messing up main bars too much,
+		// or just log to stdout if it's a transient packet loss.
+		// For CLI cleanliness, we'll just sleep and retry silently unless it's a persistent issue.
+		time.Sleep(time.Duration(i*2) * time.Second)
+	}
+
+	fmt.Printf("\n❌ Failed to download %s after %d retries: %v\n", filename, d.cfg.MaxRetries, lastErr)
+	return "", lastErr
+}
+
+func (d *Downloader) downloadFile(p *mpb.Progress, url, filename, destPath string) error {
+	req, err := http.NewRequestWithContext(context.Background(), "GET", url, nil)
 	if err != nil {
-		return "", err
+		return err
+	}
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return err
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != 200 {
-		return "", fmt.Errorf("status HTTP %d", resp.StatusCode)
+		return fmt.Errorf("HTTP %d", resp.StatusCode)
 	}
 
+	// Create Progress Bar
 	bar := p.AddBar(resp.ContentLength,
 		mpb.PrependDecorators(
-			decor.Name(filename, decor.WC{W: len(filename) + 1, C: decor.DindentRight}),
-			decor.OnComplete(decor.AverageETA(decor.ET_STYLE_GO), "baixado"),
+			decor.Name("⬇️  "+filename, decor.WC{W: 30, C: decor.DindentRight}),
+			decor.CountersKibiByte("% .2f / % .2f"),
 		),
 		mpb.AppendDecorators(
-			decor.CountersKibiByte("% .2f / % .2f"),
-			decor.Percentage(decor.WC{W: 5}),
+			decor.EwmaETA(decor.ET_STYLE_GO, 30),
+			decor.Name(" ] "),
+			decor.EwmaSpeed(1024, "% .2f", 30),
 		),
 	)
 
 	out, err := os.Create(destPath)
 	if err != nil {
 		bar.Abort(true)
-		return "", err
+		return err
 	}
 	defer out.Close()
 
-	_, err = io.Copy(out, bar.ProxyReader(resp.Body))
+	proxyReader := bar.ProxyReader(resp.Body)
+	_, err = io.Copy(out, proxyReader)
 	if err != nil {
-		return "", err
+		bar.Abort(true)
+		return err
 	}
 
-	return destPath, nil
+	return nil
 }
 
-func extractZip(p *mpb.Progress, src string) error {
+func (d *Downloader) extractZip(p *mpb.Progress, src string) error {
 	r, err := zip.OpenReader(src)
 	if err != nil {
+		fmt.Printf("\n❌ Error opening zip %s: %v\n", src, err)
 		return err
 	}
 	defer r.Close()
@@ -195,16 +319,20 @@ func extractZip(p *mpb.Progress, src string) error {
 	filename := filepath.Base(src)
 	bar := p.AddBar(totalSize,
 		mpb.PrependDecorators(
-			decor.Name(filename, decor.WC{W: len(filename) + 1, C: decor.DindentRight}),
-			decor.OnComplete(decor.Name("extraindo", decor.WC{W: 10}), "concluído"),
-		),
-		mpb.AppendDecorators(
+			decor.Name("📂 "+filename, decor.WC{W: 30, C: decor.DindentRight}),
 			decor.CountersKibiByte("% .2f / % .2f"),
 		),
+		mpb.AppendDecorators(
+			decor.Name("EXTRACTING", decor.WC{W: 10, C: decor.DindentRight}),
+			decor.OnComplete(decor.Percentage(decor.WC{W: 5}), "Done!"),
+		),
+		mpb.BarFillerMiddleware(func(filler mpb.BarFiller) mpb.BarFiller {
+			return filler // Customize color here if needed
+		}),
 	)
 
 	for _, f := range r.File {
-		fpath := filepath.Join(OutputDir, f.Name)
+		fpath := filepath.Join(d.cfg.OutputDir, f.Name)
 
 		if f.FileInfo().IsDir() {
 			os.MkdirAll(fpath, os.ModePerm)
@@ -229,13 +357,26 @@ func extractZip(p *mpb.Progress, src string) error {
 			return err
 		}
 
+		// Using a small buffer copy loop to update progress would be good,
+		// but ProxyReader is easier if we can wrap the reader.
+		// However, io.Copy(outFile, bar.ProxyReader(rc)) works nicely.
+
 		_, err = io.Copy(outFile, bar.ProxyReader(rc))
+
 		outFile.Close()
 		rc.Close()
 
 		if err != nil {
+			bar.Abort(true)
 			return err
 		}
 	}
 	return nil
+}
+
+func getEnv(key, fallback string) string {
+	if value, ok := os.LookupEnv(key); ok {
+		return value
+	}
+	return fallback
 }
