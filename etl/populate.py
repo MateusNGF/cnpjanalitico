@@ -104,7 +104,7 @@ def get_client(apply_memory_settings=False):
     host = os.getenv('CH_HOST', 'rpnr0uu71a.eastus2.azure.clickhouse.cloud')
     user = os.getenv('CH_USER', 'default')
     password = os.getenv('CH_PASSWORD')
-    port = int(os.getenv('CH_PORT', 9440))
+    port = int(os.getenv('CH_PORT', 8443))
     
     if not password:
         console.print("[bold red]ERRO: Variável CH_PASSWORD não definida![/bold red]")
@@ -176,7 +176,10 @@ def create_dictionaries(client):
     host = os.getenv('CH_HOST', 'rpnr0uu71a.eastus2.azure.clickhouse.cloud')
     user = os.getenv('CH_USER', 'default')
     password = os.getenv('CH_PASSWORD')
-    port = os.getenv('CH_PORT', '9440')
+    # Port for Client (HTTP) is usually 8443 or 8123
+    # Port for Dictionary SOURCE (Native) is usually 9440 or 9000
+    # The HTTP driver uses the HTTP port, but the Dictionary SOURCE needs the Native port.
+    native_port = os.getenv('CH_NATIVE_PORT', 9440)
     
     # Tupla: (nome, tabela, colunas, pk, layout)
     # HASHED: Para chaves simples (String/Int) - menor overhead de memória
@@ -195,7 +198,7 @@ def create_dictionaries(client):
         PRIMARY KEY {pk}
         SOURCE(CLICKHOUSE(
             HOST '{host}' 
-            PORT {port}
+            PORT {native_port}
             USER '{user}' 
             PASSWORD '{password}' 
             DB '{DB_NAME}' 
