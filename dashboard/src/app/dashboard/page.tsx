@@ -52,24 +52,27 @@ export default function Page() {
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
                 <KpiCard
                     title="Capital Social Total"
-                    value={loading ? "..." : formatCurrency(stats.capital)}
+                    value={formatCurrency(stats.capital)}
                     percentage={+5.2}
                     trend="up"
                     trendDescription="Crescimento no período"
+                    loading={loading}
                 />
                 <KpiCard
                     title="Novos CNPJs (Mês)"
-                    value={loading ? "..." : formatNumber(stats.natalidade)}
+                    value={formatNumber(stats.natalidade)}
                     percentage={-1.5}
                     trend="down"
                     trendDescription="Aberturas vs mês anterior"
+                    loading={loading}
                 />
                 <KpiCard
                     title="Taxa de Sobrevivência"
-                    value={loading ? "..." : `${(stats.survival || 0).toFixed(1)} anos`}
+                    value={`${(stats.survival || 0).toFixed(1)} anos`}
                     percentage={+2.1}
                     trend="up"
                     trendDescription="Média de tempo de vida"
+                    loading={loading}
                 />
                 <KpiCard
                     title="Saldo (MOCK)"
@@ -77,6 +80,7 @@ export default function Page() {
                     percentage={+4.5}
                     trend="up"
                     trendDescription="Expansão líquida do mercado"
+                    loading={loading}
                 />
             </div>
 

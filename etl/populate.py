@@ -39,20 +39,25 @@ def setup_logging():
     timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     log_file = os.path.join(log_dir, f"etl_v2_{timestamp}.log")
     
-    logging.basicConfig(
-        level=logging.INFO,
-        format='%(asctime)s - %(levelname)s - %(message)s',
-        handlers=[
-            logging.FileHandler(log_file, encoding='utf-8'),
-        ]
+    # Criar um logger customizado para JSON ou formato estruturado
+    logger = logging.getLogger()
+    logger.setLevel(logging.INFO)
+    
+    # Handler de Arquivo (Formato detalhado)
+    file_handler = logging.FileHandler(log_file, encoding='utf-8')
+    file_fmt = logging.Formatter(
+        '{"timestamp": "%(asctime)s", "level": "%(levelname)s", "module": "%(module)s", "message": "%(message)s"}'
     )
-    console.print(f"[dim]Log file: {log_file}[/dim]")
+    file_handler.setFormatter(file_fmt)
+    logger.addHandler(file_handler)
+    
+    console.print(f"[dim]📜 Log estruturado: {log_file}[/dim]")
     return log_file
 
 # ---------------------------------------------------------
 # CONFIGURAÇÃO
 # ---------------------------------------------------------
-DB_NAME = os.getenv('CH_DATABASE', 'cnpj_analytics')
+DB_NAME = os.getenv('CH_DATABASE', 'cnpj_silver')
 DATA_DIR = os.getenv('DATA_DIR', r'W:\app\dados_temp')
 SENTINEL_DATE = date(1900, 1, 1)
 
@@ -186,12 +191,14 @@ def create_dictionaries(client):
     # COMPLEX_KEY_HASHED: Apenas para chaves compostas
     dictionaries = [
         ("dict_cnae", "dim_cnae", "codigo String, descricao String", "codigo", "HASHED()"),
-        ("dict_municipios", "dim_municipios", "codigo String, descricao String, codigo_ibge String, uf String", "codigo", "HASHED()"),
+        ("dict_municipios", "dim_municipios", "codigo String, descricao String, codigo_ibge String, uf String, coordenadas Point", "codigo", "HASHED()"),
         ("dict_naturezas_juridicas", "dim_naturezas_juridicas", "codigo String, descricao String", "codigo", "HASHED()"),
         ("dict_motivos", "dim_motivos", "codigo String, descricao String", "codigo", "HASHED()"),
     ]
     
     for dict_name, table_name, columns, pk, layout in dictionaries:
+        # Usando LIFETIME(0) para dicionários que raramente mudam (estáticos da Receita)
+        # Isso evita recargas desnecessárias em produção.
         query = f"""
         CREATE OR REPLACE DICTIONARY {DB_NAME}.{dict_name}
         ({columns})
@@ -205,12 +212,12 @@ def create_dictionaries(client):
             TABLE '{table_name}'
             SECURE 1
         ))
-        LIFETIME(MIN 0 MAX 3600)
+        LIFETIME(0)
         LAYOUT({layout})
         """
         try:
             client.command(query)
-            logging.info(f"Dicionário {dict_name} criado/atualizado com layout {layout}.")
+            logging.info(f"Dicionário {dict_name} criado com layout {layout} e persistência de cache.")
         except Exception as e:
             logging.error(f"Erro criando dicionário {dict_name}: {e}")
 
@@ -236,12 +243,49 @@ def process_file(filepath, file_type, client, progress, overall_task, file_summa
         filepath, 
         separator=';', 
         has_header=False,
-        encoding='utf8-lossy',  # latin1 causes null values in Polars
+        encoding='utf8-lossy',
         quote_char='"', 
-        ignore_errors=True, 
+        ignore_errors=False, 
         truncate_ragged_lines=True, 
         infer_schema_length=0
     )
+
+    # Renomear colunas
+    q = q.rename({f"column_{i+1}": name for i, name in enumerate(config["columns"])})
+
+    # Casting manual com validação estrita (Enterprise Ready)
+    if file_type == 'ESTABELE':
+        q = q.with_columns([
+            pl.col("data_inicio_atividade").str.strptime(pl.Date, format="%Y%m%d", strict=False).fill_null(SENTINEL_DATE),
+            pl.col("data_situacao_cadastral").str.strptime(pl.Date, format="%Y%m%d", strict=False).fill_null(SENTINEL_DATE),
+            pl.col("cep").str.slice(0, 8).str.pad_start(8, "0")
+        ])
+    elif file_type == 'EMPRE':
+        q = q.with_columns([
+            pl.col("capital_social").str.replace(",", ".").cast(pl.Float64, strict=False).fill_null(0.0)
+        ])
+
+    # Validação de Esquema
+    schema = q.schema
+    num_cols = len(schema)
+    
+    # Validação específica baseada no layout conhecido da Receita
+    validation_map = {
+        'ESTABELE': 30,
+        'EMPRE': 7,
+        'SOCIO': 11,
+        'SIMPLES': 7,
+        'MUNIC': 2,
+        'CNAE': 2,
+        'NATJU': 2,
+        'MOTI': 2
+    }
+    
+    min_expected = validation_map.get(file_type, 0)
+    if num_cols < min_expected:
+        raise ValueError(f"❌ Esquema Inválido em {filename}: {num_cols} colunas encontradas, esperado no mínimo {min_expected}. A Receita Federal pode ter alterado o layout.")
+
+    logging.info(f"Esquema de {filename} validado: {num_cols} colunas encontradas.")
 
     # Transformações
     if file_type == 'ESTABELE':

@@ -17,6 +17,7 @@ import { StateSelector } from "@/components/shared/state-selector"
 import { CnaeSelector } from "@/components/shared/cnae-selector"
 import { SituacaoSelector } from "@/components/shared/situacao-selector"
 import React from "react"
+import { DownloadCenter } from "./download-center"
 
 export function DashboardHeader() {
     const pathname = usePathname()
@@ -66,7 +67,8 @@ export function DashboardHeader() {
                     <CnaeSelector />
                     <SituacaoSelector />
                 </div>
-                {/* <div className="h-6 w-px bg-border mx-2" /> */}
+                <Separator orientation="vertical" className="h-6" />
+                <DownloadCenter />
             </div>
         </header>
     )

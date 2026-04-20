@@ -19,6 +19,17 @@ import (
 	"github.com/vbauerster/mpb/v8/decor"
 )
 
+// FileMetadata tracks remote file state
+type FileMetadata struct {
+	LastModified string `json:"last_modified"`
+	Size         int64  `json:"size"`
+}
+
+// Manifest keeps track of all downloaded files
+type Manifest struct {
+	Files map[string]FileMetadata `json:"files"`
+}
+
 const (
 	BaseURL    = "https://arquivos.receitafederal.gov.br/dados/cnpj/dados_abertos_cnpj/2026-01/"
 	IBGEAPIURL = "https://servicodados.ibge.gov.br/api/v2/cnae/subclasses"
@@ -36,6 +47,8 @@ type Downloader struct {
 	cfg         Config
 	targetFiles []string
 	startTime   time.Time
+	manifest    *Manifest
+	manifestMtx sync.Mutex
 }
 
 // CNAEItem represents an item from the IBGE API
@@ -63,9 +76,28 @@ func main() {
 			"ESTABELE", "EMPRE", "SOCIO", "MUNIC", "MOTI", "NATJU", "SIMPLES", "NATUREZA",
 		},
 		startTime: time.Now(),
+		manifest:  &Manifest{Files: make(map[string]FileMetadata)},
 	}
 
+	app.loadManifest()
 	app.Run()
+}
+
+func (d *Downloader) loadManifest() {
+	path := filepath.Join(d.cfg.OutputDir, "manifest.json")
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return
+	}
+	json.Unmarshal(data, d.manifest)
+}
+
+func (d *Downloader) saveManifest() {
+	d.manifestMtx.Lock()
+	defer d.manifestMtx.Unlock()
+	path := filepath.Join(d.cfg.OutputDir, "manifest.json")
+	data, _ := json.MarshalIndent(d.manifest, "", "  ")
+	os.WriteFile(path, data, 0644)
 }
 
 func (d *Downloader) Run() {
@@ -210,17 +242,24 @@ func (d *Downloader) processFiles(files []string) {
 			// 1. Download
 			localPath, err := d.downloadWithRetry(p, BaseURL+fname, fname)
 			if err != nil {
-				// Error is already logged in downloadWithRetry logic if final failure
+				return
+			}
+
+			if localPath == "" {
+				// File was skipped (already up to date)
 				return
 			}
 
 			// 2. Extract
 			if err := d.extractZip(p, localPath); err != nil {
-				// Error logged inside extractZip
 				return
 			}
 
-			// 3. Remove ZIP
+			// 3. Update manifest and save
+			d.updateManifestEntry(fname)
+			d.saveManifest()
+
+			// 4. Remove ZIP
 			os.Remove(localPath)
 
 		}(filename)
@@ -230,12 +269,40 @@ func (d *Downloader) processFiles(files []string) {
 	p.Wait()
 }
 
+func (d *Downloader) updateManifestEntry(filename string) {
+	d.manifestMtx.Lock()
+	defer d.manifestMtx.Unlock()
+
+	resp, err := http.Head(BaseURL + filename)
+	if err != nil {
+		return
+	}
+	defer resp.Body.Close()
+
+	d.manifest.Files[filename] = FileMetadata{
+		LastModified: resp.Header.Get("Last-Modified"),
+		Size:         resp.ContentLength,
+	}
+}
+
 func (d *Downloader) downloadWithRetry(p *mpb.Progress, url, filename string) (string, error) {
 	destPath := filepath.Join(d.cfg.OutputDir, filename)
 
-	// Skip if exists and has size (naive check, but useful)
-	if info, err := os.Stat(destPath); err == nil && info.Size() > 0 {
-		return destPath, nil
+	// Check manifest for incremental update
+	resp, err := http.Head(url)
+	if err == nil {
+		defer resp.Body.Close()
+		lastMod := resp.Header.Get("Last-Modified")
+		size := resp.ContentLength
+
+		d.manifestMtx.Lock()
+		meta, exists := d.manifest.Files[filename]
+		d.manifestMtx.Unlock()
+
+		if exists && meta.LastModified == lastMod && meta.Size == size {
+			// Also check if extracted file exists (optional, but safer)
+			return "", nil
+		}
 	}
 
 	var lastErr error
@@ -334,6 +401,10 @@ func (d *Downloader) extractZip(p *mpb.Progress, src string) error {
 	for _, f := range r.File {
 		fpath := filepath.Join(d.cfg.OutputDir, f.Name)
 
+		// Otimização: Se o arquivo já existe e tem o tamanho correto, podemos arriscar pular? 
+		// Não, pois o ZIP mudou. Mas podemos usar um arquivo temporário para garantir atomicidade.
+		tempPath := fpath + ".tmp"
+
 		if f.FileInfo().IsDir() {
 			os.MkdirAll(fpath, os.ModePerm)
 			continue
@@ -344,7 +415,7 @@ func (d *Downloader) extractZip(p *mpb.Progress, src string) error {
 			return err
 		}
 
-		outFile, err := os.OpenFile(fpath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, f.Mode())
+		outFile, err := os.OpenFile(tempPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, f.Mode())
 		if err != nil {
 			bar.Abort(true)
 			return err
@@ -357,16 +428,19 @@ func (d *Downloader) extractZip(p *mpb.Progress, src string) error {
 			return err
 		}
 
-		// Using a small buffer copy loop to update progress would be good,
-		// but ProxyReader is easier if we can wrap the reader.
-		// However, io.Copy(outFile, bar.ProxyReader(rc)) works nicely.
-
 		_, err = io.Copy(outFile, bar.ProxyReader(rc))
 
 		outFile.Close()
 		rc.Close()
 
 		if err != nil {
+			os.Remove(tempPath)
+			bar.Abort(true)
+			return err
+		}
+
+		// Garantir atomicidade: renomear apenas se extração completa
+		if err := os.Rename(tempPath, fpath); err != nil {
 			bar.Abort(true)
 			return err
 		}
