@@ -95,20 +95,25 @@ export const QUERIES = {
         l.cnae_descricao,
         l.bairro,
         l.municipio_nome as municipio,
-        CASE 
-            WHEN l.capital_social > 10000000 THEN 'Corporativo (>10M)'
-            WHEN l.capital_social > 1000000 THEN 'Médio Porte (1M-10M)'
-            WHEN s.opcao_pelo_mei = 'S' THEN 'MEI'
-            ELSE 'Pequeno Porte'
-        END as porte,
+        l.porte_custom as porte,
         l.situacao_cadastral,
-        l.capital_social
+        l.capital_social,
+        l.data_inicio_atividade,
+        l.idade_anos,
+        l.idade_meses
     FROM v_lead_completo l
-    LEFT JOIN simples s ON l.cnpj_basico = s.cnpj_basico
     WHERE 
         l.uf = {uf:String} 
-        AND l.municipio = {municipio:String}
-        AND l.situacao_cadastral = '02' -- Ativa
+        AND ({municipio:String} = '' OR l.municipio = {municipio:String})
+        AND l.situacao_cadastral = '02'
+        AND l.capital_social >= {capital_min:Float64}
+        AND l.capital_social <= {capital_max:Float64}
+        AND (
+            ({idade_min:Int32} = 0 AND {idade_max:Int32} = 0 AND l.idade_meses <= 6) -- Menos de 6 meses
+            OR (NOT({idade_min:Int32} = 0 AND {idade_max:Int32} = 0) AND l.idade_anos >= {idade_min:Int32} AND l.idade_anos <= {idade_max:Int32})
+        )
+        AND ({natureza_juridica:String} = '' OR l.natureza_juridica = {natureza_juridica:String})
+        AND ({cnae:String} = '' OR l.cnae_fiscal_principal = {cnae:String})
     LIMIT 100
   `,
 

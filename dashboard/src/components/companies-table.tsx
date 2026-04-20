@@ -17,6 +17,7 @@ import { ArrowUpDown, ChevronDown, MoreHorizontal, Mail, Phone, MessageCircle } 
 
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
+import { cn } from "@/lib/utils"
 import {
     DropdownMenu,
     DropdownMenuCheckboxItem,
@@ -38,80 +39,19 @@ import {
 import { Badge } from "@/components/ui/badge"
 
 export type Company = {
-    id: string
-    cnpj: string
+    cnpj_full: string
     razao_social: string
     nome_fantasia: string
     cnae_descricao: string
     bairro: string
     municipio: string
-    situacao_cadastral: "Ativa" | "Baixada" | "Inapta" | "Suspensa"
-    porte: "MEI" | "ME" | "EPP" | "DEMAIS"
+    situacao_cadastral: string
+    porte: string
     capital_social: number
+    data_inicio_atividade: string
+    idade_anos: number
+    idade_meses: number
 }
-
-const data: Company[] = [
-    {
-        id: "m5gr84i9",
-        cnpj: "12.345.678/0001-99",
-        razao_social: "TECH SOLUTIONS LTDA",
-        nome_fantasia: "TechSol",
-        cnae_descricao: "Desenvolvimento de Software",
-        bairro: "Savassi",
-        municipio: "Belo Horizonte",
-        situacao_cadastral: "Ativa",
-        porte: "EPP",
-        capital_social: 150000,
-    },
-    {
-        id: "3u1re74j",
-        cnpj: "98.765.432/0001-11",
-        razao_social: "PADARIA DO JOAO ME",
-        nome_fantasia: "Padaria do João",
-        cnae_descricao: "Panificação",
-        bairro: "Centro",
-        municipio: "Divinópolis",
-        situacao_cadastral: "Ativa",
-        porte: "ME",
-        capital_social: 10000,
-    },
-    {
-        id: "derv1ws0",
-        cnpj: "11.222.333/0001-44",
-        razao_social: "CONSULTORIA EMPRESARIAL XYZ",
-        nome_fantasia: "XYZ Consultoria",
-        cnae_descricao: "Consultoria em Gestão",
-        bairro: "Lourdes",
-        municipio: "Belo Horizonte",
-        situacao_cadastral: "Baixada",
-        porte: "ME",
-        capital_social: 50000,
-    },
-    {
-        id: "5k8821d",
-        cnpj: "55.444.333/0001-22",
-        razao_social: "LOGISTICA EXPRESS S.A.",
-        nome_fantasia: "LogExpress",
-        cnae_descricao: "Transporte Rodoviário",
-        bairro: "Distrito Industrial",
-        municipio: "Betim",
-        situacao_cadastral: "Ativa",
-        porte: "DEMAIS",
-        capital_social: 2500000,
-    },
-    {
-        id: "bhqecj4p",
-        cnpj: "99.888.777/0001-00",
-        razao_social: "MERCADINHO DA ESQUINA",
-        nome_fantasia: "Mercadinho",
-        cnae_descricao: "Comércio Varejista",
-        bairro: "Santa Tereza",
-        municipio: "Belo Horizonte",
-        situacao_cadastral: "Inapta",
-        porte: "MEI",
-        capital_social: 5000,
-    },
-]
 
 export const columns: ColumnDef<Company>[] = [
     {
@@ -138,19 +78,51 @@ export const columns: ColumnDef<Company>[] = [
     },
     {
         accessorKey: "razao_social",
-        header: "Identificação (Nome / CNPJ)",
+        header: "Identificação",
         cell: ({ row }) => (
-            <div>
-                <div className="font-medium">{row.original.nome_fantasia || row.original.razao_social}</div>
-                <div className="text-xs text-muted-foreground">{row.original.cnpj}</div>
+            <div className="flex flex-col">
+                <div className="font-semibold text-sm truncate max-w-[250px]" title={row.original.razao_social}>
+                    {row.original.nome_fantasia || row.original.razao_social}
+                </div>
+                <div className="text-[10px] text-muted-foreground font-mono">
+                    {row.original.cnpj_full.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, "$1.$2.$3/$4-$5")}
+                </div>
             </div>
         ),
     },
     {
+        id: "tags",
+        header: "Maturidade",
+        cell: ({ row }) => {
+            const isHot = row.original.idade_meses <= 1
+            const isNew = row.original.idade_anos < 1
+
+            return (
+                <div className="flex flex-wrap gap-1">
+                    {isHot && (
+                        <Badge variant="secondary" className="bg-orange-500/10 text-orange-600 border-orange-200 text-[10px] px-1.5 py-0">
+                            Hot 🔥
+                        </Badge>
+                    )}
+                    {isNew && !isHot && (
+                        <Badge variant="outline" className="text-blue-600 border-blue-200 text-[10px] px-1.5 py-0">
+                            Nova
+                        </Badge>
+                    )}
+                    <Badge variant="ghost" className="text-[10px] px-1.5 py-0 font-normal">
+                        {row.original.idade_anos} {row.original.idade_anos === 1 ? 'ano' : 'anos'}
+                    </Badge>
+                </div>
+            )
+        }
+    },
+    {
         accessorKey: "cnae_descricao",
-        header: "Atividade Principal",
+        header: "Atividade",
         cell: ({ row }) => (
-            <div className="max-w-[200px] truncate" title={row.getValue("cnae_descricao")}>{row.getValue("cnae_descricao")}</div>
+            <div className="max-w-[180px] text-xs leading-tight" title={row.getValue("cnae_descricao")}>
+                {row.getValue("cnae_descricao")}
+            </div>
         ),
     },
     {
@@ -158,7 +130,7 @@ export const columns: ColumnDef<Company>[] = [
         header: "Localização",
         cell: ({ row }) => (
             <div>
-                <div className="font-medium text-xs">{row.getValue("bairro")}</div>
+                <div className="font-medium text-xs truncate max-w-[120px]">{row.getValue("bairro")}</div>
                 <div className="text-[10px] text-muted-foreground">{row.original.municipio}</div>
             </div>
         )
@@ -168,45 +140,43 @@ export const columns: ColumnDef<Company>[] = [
         header: "Status",
         cell: ({ row }) => {
             const status = row.getValue("situacao_cadastral") as string;
-            let variant: "default" | "secondary" | "destructive" | "outline" = "outline";
             let className = "";
 
             switch (status) {
-                case "Ativa":
-                    variant = "default";
-                    className = "bg-emerald-100 text-emerald-800 hover:bg-emerald-100 border-emerald-200";
+                case "02": // Ativa
+                    className = "bg-emerald-500/10 text-emerald-600 border-emerald-200";
                     break;
-                case "Baixada":
-                    variant = "destructive";
-                    className = "bg-red-100 text-red-800 hover:bg-red-100 border-red-200";
+                case "08": // Baixada
+                    className = "bg-red-500/10 text-red-600 border-red-200";
                     break;
-                case "Inapta":
-                case "Suspensa":
-                    variant = "secondary";
-                    className = "bg-amber-100 text-amber-800 hover:bg-amber-100 border-amber-200";
-                    break;
+                default:
+                    className = "bg-amber-500/10 text-amber-600 border-amber-200";
             }
 
-            return <Badge variant="outline" className={className}>{status}</Badge>
+            return <Badge variant="outline" className={cn("text-[10px] uppercase font-bold", className)}>
+                {status === "02" ? "Ativa" : status === "08" ? "Baixada" : "OUTRA"}
+            </Badge>
         },
     },
     {
         accessorKey: "porte",
         header: "Porte",
         cell: ({ row }) => (
-            <div className="text-center font-medium text-xs">{row.getValue("porte")}</div>
+            <Badge variant="secondary" className="text-[10px] font-medium bg-secondary/50 truncate max-w-[100px]">
+                {row.getValue("porte")}
+            </Badge>
         ),
     },
     {
         id: "contact",
-        header: "Contato Rápido",
+        header: "Ações Rápidas",
         cell: ({ row }) => (
-            <div className="flex items-center gap-2 text-muted-foreground">
-                <Button variant="ghost" size="icon" className="h-8 w-8 text-emerald-600">
-                    <MessageCircle className="h-4 w-4" />
+            <div className="flex items-center gap-1">
+                <Button variant="ghost" size="icon" className="h-7 w-7 text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700">
+                    <MessageCircle className="h-3.5 w-3.5" />
                 </Button>
-                <Button variant="ghost" size="icon" className="h-8 w-8 text-blue-600">
-                    <Mail className="h-4 w-4" />
+                <Button variant="ghost" size="icon" className="h-7 w-7 text-blue-600 hover:bg-blue-50 hover:text-blue-700">
+                    <Mail className="h-3.5 w-3.5" />
                 </Button>
             </div>
         ),
@@ -355,6 +325,8 @@ export function CompaniesTable() {
                                 <TableRow
                                     key={row.id}
                                     data-state={row.getIsSelected() && "selected"}
+                                    className="cursor-pointer hover:bg-muted/30 transition-colors"
+                                    onClick={() => filters.setSelectedCnpj(row.original.cnpj_full)}
                                 >
                                     {row.getVisibleCells().map((cell) => (
                                         <TableCell key={cell.id}>

@@ -1,19 +1,22 @@
 import { CompaniesTable } from "@/components/companies-table"
 import { Button } from "@/components/ui/button"
-import { Download, Users } from "lucide-react"
+import { Download, Users, Filter } from "lucide-react"
 import { PageHeader } from "@/components/common/PageHeader"
 import { PageContent } from "@/components/common/PageContent"
 import { NaturezaSelector } from "@/components/natureza-selector"
 import { CapitalSocialSelector } from "@/components/capital-social-selector"
 import { SimplesSelector } from "@/components/simples-selector"
-import { Filter } from "lucide-react"
+import { IdadeSelector } from "@/components/idade-selector"
+import { CnaeSelector } from "@/components/cnae-selector"
+
+import { LeadDrawer } from "@/components/lead-drawer"
 
 export default function LeadsPage() {
     return (
         <PageContent>
             <PageHeader
                 title="Prospecção de Leads"
-                description="Gerenciamento de listas e exportação de contatos (v_lead_completo)."
+                description="Motor de busca avançada para prospecção e qualificação corporativa."
                 icon={<Users className="h-6 w-6" />}
                 breadcrumbs={[
                     { label: "Dashboard", href: "/dashboard" },
@@ -35,16 +38,20 @@ export default function LeadsPage() {
                     <Filter className="h-4 w-4" />
                     <span className="text-xs font-semibold uppercase tracking-wider">Prospectar:</span>
                 </div>
+                <CnaeSelector />
                 <NaturezaSelector />
                 <CapitalSocialSelector />
+                <IdadeSelector />
                 <SimplesSelector />
                 <div className="flex-1" />
-                <Button size="sm" className="h-8">Aplicar Filtros</Button>
+                <Button size="sm" className="h-8 shadow-lg shadow-primary/20">Aplicar Filtros</Button>
             </div>
 
             <div className="bg-background rounded-xl border p-6 flex-1 overflow-hidden flex flex-col">
                 <CompaniesTable />
             </div>
+
+            <LeadDrawer />
         </PageContent>
     )
 }

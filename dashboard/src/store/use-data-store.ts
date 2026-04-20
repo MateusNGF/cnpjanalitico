@@ -7,19 +7,32 @@ interface FilterParams {
     situacao?: string | null
     naturezaJuridica?: string | null
     capitalSocial?: [number, number] | null
+    idadeRange?: [number, number] | null
     dateRange?: { from: Date | undefined; to: Date | undefined }
 }
 
 function buildQueryParams(filters: FilterParams) {
     const params = new URLSearchParams()
     if (filters.uf) params.append('uf', filters.uf)
-    if (filters.city) params.append('municipio_id', filters.city)
+    if (filters.city) {
+        params.append('municipio_id', filters.city)
+        params.append('municipio', filters.city)
+    }
     if (filters.cnae) params.append('cnae', filters.cnae)
     if (filters.situacao) params.append('situacao', filters.situacao)
-    if (filters.naturezaJuridica) params.append('natureza', filters.naturezaJuridica)
+    if (filters.naturezaJuridica) {
+        params.append('natureza', filters.naturezaJuridica)
+        params.append('natureza_juridica', filters.naturezaJuridica)
+    }
     if (filters.capitalSocial) {
+        params.append('capital_min', String(filters.capitalSocial[0]))
+        params.append('capital_max', String(filters.capitalSocial[1]))
         params.append('min_capital', String(filters.capitalSocial[0]))
         params.append('max_capital', String(filters.capitalSocial[1]))
+    }
+    if (filters.idadeRange) {
+        params.append('idade_min', String(filters.idadeRange[0]))
+        params.append('idade_max', String(filters.idadeRange[1]))
     }
     if (filters.dateRange?.from) params.append('start_date', filters.dateRange.from.toISOString())
     if (filters.dateRange?.to) params.append('end_date', filters.dateRange.to.toISOString())

@@ -1,7 +1,7 @@
 -- setup_views_v2.sql
 -- Views que dependem de Dicionários (Criados dinamicamente via ETL)
 
-CREATE VIEW IF NOT EXISTS cnpj_analytics.v_lead_completo AS
+CREATE OR REPLACE VIEW cnpj_analytics.v_lead_completo AS
 SELECT 
     e.cnpj_basico,
     e.cnpj_ordem,
@@ -10,6 +10,9 @@ SELECT
     e.nome_fantasia,
     e.situacao_cadastral,
     e.data_situacao_cadastral,
+    e.data_inicio_atividade,
+    dateDiff('year', e.data_inicio_atividade, now()) as idade_anos,
+    dateDiff('month', e.data_inicio_atividade, now()) as idade_meses,
     e.cnae_fiscal_principal,
     dictGet('cnpj_analytics.dict_cnae', 'descricao', e.cnae_fiscal_principal) as cnae_descricao,
     e.tipo_logradouro,
@@ -27,9 +30,19 @@ SELECT
     emp.capital_social,
     emp.porte_empresa,
     emp.natureza_juridica,
-    dictGet('cnpj_analytics.dict_naturezas_juridicas', 'descricao', emp.natureza_juridica) as natureza_juridica_descricao
+    dictGet('cnpj_analytics.dict_naturezas_juridicas', 'descricao', emp.natureza_juridica) as natureza_juridica_descricao,
+    s.opcao_pelo_mei,
+    CASE 
+        WHEN s.opcao_pelo_mei = 'S' THEN 'MEI'
+        WHEN emp.capital_social > 10000000 THEN 'Corporativo (>10M)'
+        WHEN emp.capital_social > 1000000 THEN 'Médio Porte (1M-10M)'
+        WHEN emp.porte_empresa = '01' THEN 'Micro Empresa'
+        WHEN emp.porte_empresa = '03' THEN 'Pequeno Porte'
+        ELSE 'Demais'
+    END as porte_custom
 FROM cnpj_analytics.estabelecimentos e
-LEFT JOIN cnpj_analytics.empresas emp ON e.cnpj_basico = emp.cnpj_basico;
+LEFT JOIN cnpj_analytics.empresas emp ON e.cnpj_basico = emp.cnpj_basico
+LEFT JOIN cnpj_analytics.simples s ON e.cnpj_basico = s.cnpj_basico;
 
 CREATE VIEW IF NOT EXISTS cnpj_analytics.v_segmentacao_mercado AS
 SELECT 
