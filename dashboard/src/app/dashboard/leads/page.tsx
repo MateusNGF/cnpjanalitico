@@ -36,7 +36,10 @@ export default function LeadsPage() {
                 <CapitalSocialSelector />
                 <IdadeSelector />
                 <SimplesSelector />
-                <Button size="sm" className="h-8 shadow-lg shadow-primary/20 ml-2">Aplicar Filtros</Button>
+                <div className="flex items-center gap-2 px-3 py-1 bg-emerald-500/10 text-emerald-600 rounded-full border border-emerald-500/20 text-[10px] font-bold animate-in fade-in slide-in-from-left-1">
+                    <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                    BUSCA AUTOMÁTICA
+                </div>
             </LocalFilterBar>
 
             <div className="bg-background rounded-xl border p-6 flex-1 overflow-hidden flex flex-col">

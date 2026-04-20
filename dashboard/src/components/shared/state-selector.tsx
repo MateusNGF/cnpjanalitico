@@ -67,16 +67,13 @@ export function StateSelector() {
                         <span className="flex-shrink-0 text-lg">
                             {states.find((s) => s.value === uf)?.flag || "📍"}
                         </span>
-                        <span className="truncate">
-                            {states.find((s) => s.value === uf)?.label || "Selecione o Estado"}
+                        <span className="font-bold text-xs">{uf}</span>
+                        <span className="truncate text-xs opacity-70">
+                            - {states.find((s) => s.value === uf)?.label || "Selecione"}
                         </span>
                     </div>
                     <div className="flex items-center gap-1">
-                        <Badge variant="secondary" className="h-5 px-1 bg-emerald-500/10 text-emerald-400 border-emerald-500/20 text-[10px]">
-                            <Zap className="h-2.5 w-2.5 mr-0.5" />
-                            FAST
-                        </Badge>
-                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                        <ChevronsUpDown className="ml-2 h-3 w-3 shrink-0 opacity-50" />
                     </div>
                 </Button>
             </PopoverTrigger>

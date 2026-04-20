@@ -22,7 +22,7 @@ const DynamicMap = dynamic<any>(() => import("@/components/ui/map-client"), {
 })
 
 export function MapContainer() {
-    const { uf, setCity } = useFilterStore()
+    const { uf, city, cnae, situacao, naturezaJuridica, capitalSocial, idadeRange, setCity } = useFilterStore()
     const { data: mapData, loading: mapLoading } = useDataStore(s => s.map)
     const fetchMap = useDataStore(s => s.fetchMap)
     const [geoData, setGeoData] = useState<any>(null)
@@ -36,7 +36,7 @@ export function MapContainer() {
             }
 
             setGeoLoading(true)
-            fetchMap({ uf })
+            fetchMap({ uf, city, cnae, situacao, naturezaJuridica, capitalSocial, idadeRange })
 
             try {
                 const geoUrl = `https://servicodados.ibge.gov.br/api/v3/malhas/estados/${uf}?formato=application/vnd.geo+json&qualidade=minima&resolucao=municipio`;

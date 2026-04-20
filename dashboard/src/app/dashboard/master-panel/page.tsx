@@ -18,7 +18,22 @@ const MasterMap = dynamic(() => import("@/features/analytics/components/map-cont
     loading: () => <Skeleton className="w-full h-[500px] rounded-xl animate-pulse bg-muted/20" />,
 });
 
+import { useFilterStore } from "@/store/use-filter-store";
+import { useDataStore } from "@/store/use-data-store";
+import { useEffect } from "react"
+
 export default function MasterPanelPage() {
+    const { uf, city, cnae, situacao, naturezaJuridica, capitalSocial, idadeRange } = useFilterStore()
+    const { data: statsData, loading } = useDataStore(s => s.stats)
+    const fetchStats = useDataStore(s => s.fetchStats)
+
+    useEffect(() => {
+        fetchStats({ uf, city, cnae, situacao, naturezaJuridica, capitalSocial, idadeRange })
+    }, [uf, city, cnae, situacao, naturezaJuridica, capitalSocial, idadeRange, fetchStats])
+
+    const stats = statsData || { capital: 0, natalidade: 0, survival: 0, topCnaes: [] }
+    const topCnaes = stats.topCnaes || []
+
     return (
         <PageContent>
             <PageHeader
@@ -35,10 +50,10 @@ export default function MasterPanelPage() {
 
             {/* KPI Section */}
             <div className="grid gap-[var(--section-gap)] grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 mb-[var(--section-gap)]">
-                <KPICard title="Market Share" value="24.5%" icon={<TrendingUp className="h-4 w-4 text-emerald-500" />} trend="+2.1%" />
-                <KPICard title="Novas Empresas" value={formatNumber(124000)} icon={<Building2 className="h-4 w-4 text-blue-500" />} trend="+15%" />
-                <KPICard title="Densidade Regional" value="842/km²" icon={<Users className="h-4 w-4 text-purple-500" />} />
-                <KPICard title="Zonas de Risco" value="12 Áreas" icon={<ShieldAlert className="h-4 w-4 text-rose-500" />} trend="Estável" />
+                <KPICard title="Market Volume" value={new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', notation: 'compact' }).format(stats.capital)} icon={<TrendingUp className="h-4 w-4 text-emerald-500" />} trend={loading ? "..." : "+2.1%"} />
+                <KPICard title="Novas Empresas" value={formatNumber(stats.natalidade)} icon={<Building2 className="h-4 w-4 text-blue-500" />} trend={loading ? "..." : "+15%"} />
+                <KPICard title="Indice Sobrevivência" value={`${(stats.survival || 0).toFixed(1)} anos`} icon={<ShieldAlert className="h-4 w-4 text-rose-500" />} trend="Média" />
+                <KPICard title="Densidade Regional" value="Alta" icon={<Users className="h-4 w-4 text-purple-500" />} />
             </div>
 
             {/* Main Content: Map + Context */}
@@ -66,10 +81,18 @@ export default function MasterPanelPage() {
                             <CardTitle className="text-sm font-semibold">Top Setores na Região</CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-4">
-                            <SimpleBar label={`${formatCNAE("4711301")} - Comércio Varejista`} value={75} color="var(--chart-1)" />
-                            <SimpleBar label={`${formatCNAE("8211300")} - Serviços Administrativos`} value={55} color="var(--chart-2)" />
-                            <SimpleBar label={`${formatCNAE("4120400")} - Construção Civil`} value={40} color="var(--chart-3)" />
-                            <SimpleBar label={`${formatCNAE("8630501")} - Saúde e Bem-Estar`} value={30} color="var(--chart-4)" />
+                            {topCnaes.length > 0 ? (
+                                topCnaes.map((item: any, i: number) => (
+                                    <SimpleBar 
+                                        key={i}
+                                        label={item.label} 
+                                        value={Math.round((item.value / topCnaes[0].value) * 100)} 
+                                        color={`var(--chart-${(i%5)+1})`} 
+                                    />
+                                ))
+                            ) : (
+                                <p className="text-xs text-muted-foreground italic">Dados não disponíveis para este filtro.</p>
+                            )}
                         </CardContent>
                     </Card>
 

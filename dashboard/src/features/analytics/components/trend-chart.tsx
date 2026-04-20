@@ -15,13 +15,13 @@ interface TrendData {
 }
 
 export function TrendChart() {
-    const uf = useFilterStore(s => s.uf)
+    const { uf, city, cnae, situacao, naturezaJuridica, capitalSocial, idadeRange } = useFilterStore()
     const { data, loading } = useDataStore(s => s.trends)
     const fetchTrends = useDataStore(s => s.fetchTrends)
 
     useEffect(() => {
-        fetchTrends({ uf })
-    }, [uf, fetchTrends])
+        fetchTrends({ uf, city, cnae, situacao, naturezaJuridica, capitalSocial, idadeRange })
+    }, [uf, city, cnae, situacao, naturezaJuridica, capitalSocial, idadeRange, fetchTrends])
 
     const chartData = useMemo(() => {
         if (!data) return []
