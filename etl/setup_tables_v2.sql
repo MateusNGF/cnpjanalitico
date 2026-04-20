@@ -3,7 +3,9 @@
 -- Otimizado para Memória (Sem Nullable + Codecs)
 -- NÃO CONTÉM: Dicionários (criados via ETL) e Views dependentes
 
+CREATE DATABASE IF NOT EXISTS cnpj_bronze;
 CREATE DATABASE IF NOT EXISTS cnpj_silver;
+CREATE DATABASE IF NOT EXISTS cnpj_gold;
 
 -- --------------------------------------------------------
 -- 1. Tabelas de Dimensão

@@ -61,6 +61,10 @@ DB_NAME = os.getenv('CH_DATABASE', 'cnpj_silver')
 DATA_DIR = os.getenv('DATA_DIR', r'W:\app\dados_temp')
 SENTINEL_DATE = date(1900, 1, 1)
 
+# Parâmetros de Performance (Extraídos para fácil ajuste)
+MAX_WORKERS = 2
+BATCH_SIZE = 50000
+
 # Arquivos separadas para estrutura e views
 SETUP_TABLES_FILE = 'setup_tables_v2.sql'
 SETUP_VIEWS_FILE = 'setup_views_v2.sql'
@@ -98,105 +102,48 @@ FILES_CONFIG = {
 # ---------------------------------------------------------
 # FUNÇÕES DE BANCO DE DADOS
 # ---------------------------------------------------------
-def get_client(apply_memory_settings=False):
-    """Conexão segura usando Variáveis de Ambiente.
-    
-    Args:
-        apply_memory_settings: Se True, aplica configurações de proteção contra OOM.
-    """
-    retries = 5
-    
-    host = os.getenv('CH_HOST', 'rpnr0uu71a.eastus2.azure.clickhouse.cloud')
-    user = os.getenv('CH_USER', 'default')
-    password = os.getenv('CH_PASSWORD')
-    port = int(os.getenv('CH_PORT', 8443))
-    
-    if not password:
-        console.print("[bold red]ERRO: Variável CH_PASSWORD não definida![/bold red]")
-        sys.exit(1)
-
-    while retries > 0:
-        try:
-            client = clickhouse_connect.get_client(
-                host=host,
-                port=port,
-                user=user,
-                password=password,
-                secure=True,
-                connect_timeout=30,
-                send_receive_timeout=300
-            )
-            
-            # Configurações de proteção contra OOM (spill-to-disk)
-            if apply_memory_settings:
-                memory_settings = [
-                    "SET max_bytes_before_external_group_by = 10000000000",  # 10GB
-                    "SET max_bytes_before_external_sort = 10000000000",      # 10GB
-                    "SET join_use_nulls = 0",                                 # Evita overhead de Nullable
-                    "SET join_algorithm = 'auto'",                            # Permite grace_hash automático
-                ]
-                for setting in memory_settings:
-                    try:
-                        client.command(setting)
-                    except Exception as e:
-                        logging.warning(f"Não foi possível aplicar setting: {setting} - {e}")
-            
-            return client
-        except Exception as e:
-            console.print(f"[yellow]Retrying connection... ({e})[/yellow]")
-            time.sleep(5)
-            retries -= 1
-    raise Exception("Falha crítica de conexão ClickHouse.")
+def get_client():
+    return clickhouse_connect.get_client(
+        host=os.getenv('CH_HOST'),
+        port=int(os.getenv('CH_PORT', 8443)),
+        username=os.getenv('CH_USER', 'default'),
+        password=os.getenv('CH_PASSWORD'),
+        secure=True,
+        connect_timeout=30,
+        send_receive_timeout=300
+    )
 
 def execute_sql_file(client, filename):
-    script_path = os.path.join(os.path.dirname(__file__), filename)
-    if not os.path.exists(script_path):
-        logging.error(f"Arquivo {filename} não encontrado.")
-        sys.exit(1)
-        
-    logging.info(f"Executando {filename}...")
-    with open(script_path, 'r', encoding='utf-8') as f:
-        sql_content = f.read()
-        lines = [line for line in sql_content.split('\n') if not line.strip().startswith('--')]
-        full_sql = '\n'.join(lines)
-        commands = [c.strip() for c in full_sql.split(';') if c.strip()]
-        
-        for cmd in commands:
-            if len(cmd) < 5: continue
-            try:
-                client.command(cmd)
-            except Exception as e:
-                # 'Table ... already exists' ou 'View ... already exists'
-                if "already exists" not in str(e):
+    if not os.path.exists(filename):
+        logging.warning(f"Aviso: Arquivo {filename} não encontrado.")
+        return
+    
+    with open(filename, 'r', encoding='utf-8') as f:
+        # Divide por ;, mas ignora comentários para validar se a query é vazia
+        queries = f.read().split(';')
+        for query in queries:
+            clean_query = query.strip()
+            # Só executa se tiver conteúdo real (ignora comentários puros)
+            if clean_query and not all(line.strip().startswith('--') for line in clean_query.split('\n') if line.strip()):
+                try:
+                    client.command(clean_query)
+                except Exception as e:
                     logging.warning(f"Erro SQL em {filename}: {e}")
 
 def create_dictionaries(client):
-    """Cria dicionários programaticamente usando credenciais do ambiente.
-    
-    Otimização de Memória: Usando HASHED ao invés de COMPLEX_KEY_HASHED
-    para chaves simples - reduz overhead de RAM significativamente.
-    """
-    console.print("[cyan]Criando Dicionários Otimizados...[/cyan]")
-    
-    host = os.getenv('CH_HOST', 'rpnr0uu71a.eastus2.azure.clickhouse.cloud')
+    """Cria dicionários estáticos para melhorar performance de join em views."""
+    native_port = int(os.getenv('CH_NATIVE_PORT', 9440))
+    host = os.getenv('CH_HOST')
     user = os.getenv('CH_USER', 'default')
     password = os.getenv('CH_PASSWORD')
-    # Port for Client (HTTP) is usually 8443 or 8123
-    # Port for Dictionary SOURCE (Native) is usually 9440 or 9000
-    # The HTTP driver uses the HTTP port, but the Dictionary SOURCE needs the Native port.
-    native_port = os.getenv('CH_NATIVE_PORT', 9440)
     
-    # Tupla: (nome, tabela, colunas, pk, layout)
-    # HASHED: Para chaves simples (String/Int) - menor overhead de memória
-    # COMPLEX_KEY_HASHED: Apenas para chaves compostas
-    dictionaries = [
-        ("dict_cnae", "dim_cnae", "codigo String, descricao String", "codigo", "HASHED()"),
-        ("dict_municipios", "dim_municipios", "codigo String, descricao String, codigo_ibge String, uf String, coordenadas Point", "codigo", "HASHED()"),
-        ("dict_naturezas_juridicas", "dim_naturezas_juridicas", "codigo String, descricao String", "codigo", "HASHED()"),
-        ("dict_motivos", "dim_motivos", "codigo String, descricao String", "codigo", "HASHED()"),
+    dicts = [
+        ('dict_cnae', 'dim_cnae', 'codigo', 'codigo String, descricao String', 'HASHED()'),
+        ('dict_municipios', 'dim_municipios', 'codigo', 'codigo String, descricao String, uf String', 'HASHED()'),
+        ('dict_naturezas_juridicas', 'dim_naturezas_juridicas', 'codigo', 'codigo String, descricao String', 'HASHED()')
     ]
     
-    for dict_name, table_name, columns, pk, layout in dictionaries:
+    for dict_name, table_name, pk, columns, layout in dicts:
         # Usando LIFETIME(0) para dicionários que raramente mudam (estáticos da Receita)
         # Isso evita recargas desnecessárias em produção.
         query = f"""
@@ -234,7 +181,7 @@ def process_file(filepath, file_type, client, progress, overall_task, file_summa
         "file": filename, "type": file_type, 
         "start": start_time.strftime("%H:%M:%S"), "end": "-", 
         "rows_read": 0, "rows_inserted": 0, 
-        "status": "[yellow]Iniciando...[/yellow]"
+        "status": "[yellow]Lendo CSV (Polars)...[/yellow]"
     }
     file_summary.append(file_record)
     if ui_callback: ui_callback()
@@ -250,26 +197,7 @@ def process_file(filepath, file_type, client, progress, overall_task, file_summa
         infer_schema_length=0
     )
 
-    # Renomear colunas
-    q = q.rename({f"column_{i+1}": name for i, name in enumerate(config["columns"])})
-
-    # Casting manual com validação estrita (Enterprise Ready)
-    if file_type == 'ESTABELE':
-        q = q.with_columns([
-            pl.col("data_inicio_atividade").str.strptime(pl.Date, format="%Y%m%d", strict=False).fill_null(SENTINEL_DATE),
-            pl.col("data_situacao_cadastral").str.strptime(pl.Date, format="%Y%m%d", strict=False).fill_null(SENTINEL_DATE),
-            pl.col("cep").str.slice(0, 8).str.pad_start(8, "0")
-        ])
-    elif file_type == 'EMPRE':
-        q = q.with_columns([
-            pl.col("capital_social").str.replace(",", ".").cast(pl.Float64, strict=False).fill_null(0.0)
-        ])
-
-    # Validação de Esquema
-    schema = q.schema
-    num_cols = len(schema)
-    
-    # Validação específica baseada no layout conhecido da Receita
+    # Validação de Esquema baseada no layout conhecido da Receita
     validation_map = {
         'ESTABELE': 30,
         'EMPRE': 7,
@@ -281,13 +209,17 @@ def process_file(filepath, file_type, client, progress, overall_task, file_summa
         'MOTI': 2
     }
     
+    # Fazemos um fetch rápido de 1 linha para validar o schema
+    schema_check = q.head(1).collect()
+    num_cols = len(schema_check.columns)
     min_expected = validation_map.get(file_type, 0)
+    
     if num_cols < min_expected:
         raise ValueError(f"❌ Esquema Inválido em {filename}: {num_cols} colunas encontradas, esperado no mínimo {min_expected}. A Receita Federal pode ter alterado o layout.")
 
     logging.info(f"Esquema de {filename} validado: {num_cols} colunas encontradas.")
 
-    # Transformações
+    # Transformações e Aliasing por Posição (ESTRATÉGIA MAIS SEGURA)
     if file_type == 'ESTABELE':
         q = q.select([
             pl.col("column_1").alias("cnpj_basico"),
@@ -296,33 +228,28 @@ def process_file(filepath, file_type, client, progress, overall_task, file_summa
             pl.col("column_4").alias("identificador_matriz_filial"),
             pl.col("column_5").str.strip_chars().fill_null("").alias("nome_fantasia"),
             pl.col("column_6").alias("situacao_cadastral"),
-            pl.col("column_7").alias("data_situacao_cadastral"),
-            pl.col("column_11").alias("data_inicio_atividade"),
+            pl.col("column_7").str.to_date("%Y%m%d", strict=False).fill_null(pl.lit(SENTINEL_DATE)).alias("data_situacao_cadastral"),
+            pl.col("column_11").str.to_date("%Y%m%d", strict=False).fill_null(pl.lit(SENTINEL_DATE)).alias("data_inicio_atividade"),
             pl.col("column_12").alias("cnae_fiscal_principal"),
             pl.col("column_14").str.strip_chars().fill_null("").alias("tipo_logradouro"),
             pl.col("column_15").str.strip_chars().fill_null("").alias("logradouro"),
             pl.col("column_16").str.strip_chars().fill_null("").alias("numero"),
             pl.col("column_17").str.strip_chars().fill_null("").alias("complemento"),
             pl.col("column_18").str.strip_chars().fill_null("").alias("bairro"),
-            pl.col("column_19").str.replace(r"\D", "").fill_null("").alias("cep"),
+            pl.col("column_19").str.replace(r"\D", "").str.slice(0, 8).str.pad_start(8, "0").fill_null("").alias("cep"),
             pl.col("column_20").alias("uf"),
             pl.col("column_21").fill_null("").alias("municipio"),
             pl.col("column_22").fill_null("").alias("ddd1"),
             pl.col("column_23").fill_null("").alias("telefone1"),
             pl.col("column_28").str.strip_chars().fill_null("").alias("correio_eletronico")
-        ]).with_columns([
-            pl.col("data_situacao_cadastral").str.to_date("%Y%m%d", strict=False).fill_null(pl.lit(SENTINEL_DATE)),
-            pl.col("data_inicio_atividade").str.to_date("%Y%m%d", strict=False).fill_null(pl.lit(SENTINEL_DATE))
         ])
     elif file_type == 'EMPRE':
         q = q.select([
             pl.col("column_1").alias("cnpj_basico"),
             pl.col("column_2").str.strip_chars().fill_null("").alias("razao_social"),
             pl.col("column_3").alias("natureza_juridica"),
-            pl.col("column_5").alias("capital_social"),
+            pl.col("column_5").str.replace(",", ".").cast(pl.Float64, strict=False).fill_null(0.0).alias("capital_social"),
             pl.col("column_6").alias("porte_empresa")
-        ]).with_columns([
-            pl.col("capital_social").str.replace(",", ".").cast(pl.Float64, strict=False).fill_null(0.0)
         ])
     elif file_type == 'SOCIO':
         q = q.select([
@@ -331,26 +258,19 @@ def process_file(filepath, file_type, client, progress, overall_task, file_summa
             pl.col("column_3").str.strip_chars().alias("nome_socio"),
             pl.col("column_4").alias("cnpj_cpf_socio"),
             pl.col("column_5").alias("qualificacao_socio"),
-            pl.col("column_6").alias("data_entrada_sociedade"),
+            pl.col("column_6").str.to_date("%Y%m%d", strict=False).fill_null(pl.lit(SENTINEL_DATE)).alias("data_entrada_sociedade"),
             pl.col("column_7").alias("pais"),
             pl.col("column_11").alias("faixa_etaria")
-        ]).with_columns([
-            pl.col("data_entrada_sociedade").str.to_date("%Y%m%d", strict=False).fill_null(pl.lit(SENTINEL_DATE))
         ])
     elif file_type == 'SIMPLES':
         q = q.select([
             pl.col("column_1").alias("cnpj_basico"),
             pl.col("column_2").alias("opcao_pelo_simples"),
-            pl.col("column_3").alias("data_opcao_simples"),
-            pl.col("column_4").alias("data_exclusao_simples"),
+            pl.col("column_3").str.to_date("%Y%m%d", strict=False).fill_null(pl.lit(SENTINEL_DATE)).alias("data_opcao_simples"),
+            pl.col("column_4").str.to_date("%Y%m%d", strict=False).fill_null(pl.lit(SENTINEL_DATE)).alias("data_exclusao_simples"),
             pl.col("column_5").alias("opcao_pelo_mei"),
-            pl.col("column_6").alias("data_opcao_mei"),
-            pl.col("column_7").alias("data_exclusao_mei")
-        ]).with_columns([
-            pl.col("data_opcao_simples").str.to_date("%Y%m%d", strict=False).fill_null(pl.lit(SENTINEL_DATE)),
-            pl.col("data_exclusao_simples").str.to_date("%Y%m%d", strict=False).fill_null(pl.lit(SENTINEL_DATE)),
-            pl.col("data_opcao_mei").str.to_date("%Y%m%d", strict=False).fill_null(pl.lit(SENTINEL_DATE)),
-            pl.col("data_exclusao_mei").str.to_date("%Y%m%d", strict=False).fill_null(pl.lit(SENTINEL_DATE))
+            pl.col("column_6").str.to_date("%Y%m%d", strict=False).fill_null(pl.lit(SENTINEL_DATE)).alias("data_opcao_mei"),
+            pl.col("column_7").str.to_date("%Y%m%d", strict=False).fill_null(pl.lit(SENTINEL_DATE)).alias("data_exclusao_mei")
         ])
     elif file_type in ['MUNIC', 'CNAE', 'MOTI', 'NATJU']:
         q = q.select([
@@ -359,7 +279,6 @@ def process_file(filepath, file_type, client, progress, overall_task, file_summa
         ])
 
     try:
-        BATCH_SIZE = 50000 
         processed_batches = q.collect(streaming=True)
         total_rows = processed_batches.height
         file_record["rows_read"] = total_rows
@@ -485,8 +404,11 @@ def main():
     )
 
     layout = Layout()
-    layout.split_column(Layout(name="header", size=3), Layout(name="body"), Layout(name="footer", size=10))
-    layout["header"].update(Panel("[bold white]CNPJ ETL V2 (SECURE)[/bold white]", style="blue"))
+    layout.split_column(Layout(name="header", size=4), Layout(name="body"), Layout(name="footer", size=10))
+    
+    header_content = f"""[bold white]CNPJ ETL V2 (SECURE)[/bold white]
+[dim]DB: {DB_NAME} | Workers: {MAX_WORKERS} | Batch: {BATCH_SIZE:,} | Dir: {DATA_DIR}[/dim]"""
+    layout["header"].update(Panel(header_content, style="blue"))
 
     try:
         with Live(layout, console=console, refresh_per_second=4):
@@ -528,8 +450,8 @@ def main():
                     except queue.Empty:
                         break
 
-            with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:
-                futures = [executor.submit(worker_process) for _ in range(3)]
+            with concurrent.futures.ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
+                futures = [executor.submit(worker_process) for _ in range(MAX_WORKERS)]
                 for f in concurrent.futures.as_completed(futures):
                     f.result()
 
