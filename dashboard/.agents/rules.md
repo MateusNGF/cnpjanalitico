@@ -24,4 +24,9 @@ Você é um especialista em Next.js, RxJS e Shadcn UI, focado no projeto de aná
 
 ## 4. Padrão de Código
 - **TypeScript:** Strict mode sempre. Tipagem explícita para interfaces de API.
-- **Performance:** Evite subscrições manuais dentro de `useEffect` sem o devido cleanup. Prefira centralizar no hook `useObservable`.
+- **Performance & Lazy Loading:** 
+  - Use `next/dynamic` para carregar componentes pesados (Gráficos, Mapas, Modais complexos).
+  - Implemente `React.Suspense` com fallbacks de `Skeleton` do Shadcn.
+  - Otimize imagens com `next/image`.
+  - Evite subscrições manuais dentro de `useEffect` sem o devido cleanup. Prefira centralizar no hook `useObservable`.
+
