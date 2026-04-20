@@ -1,15 +1,14 @@
-import { CompaniesTable } from "@/components/companies-table"
+import { CompaniesTable } from "@/features/leads/components/companies-table"
 import { Button } from "@/components/ui/button"
 import { Download, Users, Filter } from "lucide-react"
-import { PageHeader } from "@/components/common/PageHeader"
-import { PageContent } from "@/components/common/PageContent"
-import { NaturezaSelector } from "@/components/natureza-selector"
-import { CapitalSocialSelector } from "@/components/capital-social-selector"
-import { SimplesSelector } from "@/components/simples-selector"
-import { IdadeSelector } from "@/components/idade-selector"
-import { CnaeSelector } from "@/components/cnae-selector"
-
-import { LeadDrawer } from "@/components/lead-drawer"
+import { PageHeader } from "@/components/shared/PageHeader"
+import { PageContent } from "@/components/shared/PageContent"
+import { NaturezaSelector } from "@/components/shared/natureza-selector"
+import { CapitalSocialSelector } from "@/components/shared/capital-social-selector"
+import { SimplesSelector } from "@/components/shared/simples-selector"
+import { IdadeSelector } from "@/components/shared/idade-selector"
+import { LocalFilterBar } from "@/components/shared/LocalFilterBar"
+import { LeadDrawer } from "@/features/leads/components/lead-drawer"
 
 export default function LeadsPage() {
     return (
@@ -32,20 +31,13 @@ export default function LeadsPage() {
                 }
             />
 
-            {/* Leads Filter Bar */}
-            <div className="flex flex-wrap items-center gap-3 mb-6 p-4 rounded-xl border border-primary/5 bg-background/50 backdrop-blur-md">
-                <div className="flex items-center gap-2 text-muted-foreground mr-2">
-                    <Filter className="h-4 w-4" />
-                    <span className="text-xs font-semibold uppercase tracking-wider">Prospectar:</span>
-                </div>
-                <CnaeSelector />
+            <LocalFilterBar title="Prospectar">
                 <NaturezaSelector />
                 <CapitalSocialSelector />
                 <IdadeSelector />
                 <SimplesSelector />
-                <div className="flex-1" />
-                <Button size="sm" className="h-8 shadow-lg shadow-primary/20">Aplicar Filtros</Button>
-            </div>
+                <Button size="sm" className="h-8 shadow-lg shadow-primary/20 ml-2">Aplicar Filtros</Button>
+            </LocalFilterBar>
 
             <div className="bg-background rounded-xl border p-6 flex-1 overflow-hidden flex flex-col">
                 <CompaniesTable />

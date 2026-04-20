@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { query } from "@/lib/clickhouse"
 import { QUERIES } from "@/lib/queries"
 import { z } from "zod"
-import { StateStats, CnaeRanking, PorteDistribution } from "@/components/Map/types"
+import { StateStats, CnaeRanking, PorteDistribution } from "@/features/analytics/components/Map/types"
 
 const querySchema = z.object({
     uf: z.string().default("BR"),

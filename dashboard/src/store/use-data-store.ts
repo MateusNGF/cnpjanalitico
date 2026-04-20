@@ -39,7 +39,7 @@ function buildQueryParams(filters: FilterParams) {
     return params.toString()
 }
 
-import { StateStats } from '@/components/Map/types'
+import { StateStats } from '@/features/analytics/components/Map/types'
 
 interface DataState {
     // Stats (KPIs)

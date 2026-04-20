@@ -9,9 +9,9 @@ import {
     Users,
 } from "lucide-react"
 
-import { NavMain } from "@/components/nav-main"
-import { NavUser } from "@/components/nav-user"
-import { TeamSwitcher } from "@/components/team-switcher"
+import { NavMain } from "@/components/layout/nav-main"
+import { NavUser } from "@/components/layout/nav-user"
+import { TeamSwitcher } from "@/components/layout/team-switcher"
 import {
     Sidebar,
     SidebarContent,
@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/sidebar"
 
 // This is sample data.
-const data = {
+const sidebarData = {
     user: {
         name: "Consultor",
         email: "admin@cnpj-analytics.com",
@@ -36,19 +36,24 @@ const data = {
     ],
     navMain: [
         {
-            title: "Dashboards",
-            url: "/dashboard",
+            title: "Inteligência de Mercado",
+            url: "#",
             icon: LayoutDashboard,
             isActive: true,
             items: [
-                {
-                    title: "Visão Geral",
-                    url: "/dashboard",
-                },
-                {
-                    title: "Mapa Estratégico",
-                    url: "/mapa",
-                },
+                { title: "Visão Geral", url: "/dashboard" },
+                { title: "Análise Geográfica", url: "/dashboard/geo" },
+                { title: "Tendências (Mortalidade)", url: "/dashboard/trends" },
+                { title: "Painel Mestre", url: "/dashboard/master-panel" },
+            ],
+        },
+        {
+            title: "Operacional",
+            url: "#",
+            icon: Users,
+            items: [
+                { title: "Motor de Prospecção", url: "/dashboard/leads" },
+                { title: "Minhas Listas", url: "/dashboard/lists" },
             ],
         },
     ],
@@ -57,14 +62,11 @@ const data = {
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     return (
         <Sidebar collapsible="icon" {...props}>
-            {/* <SidebarHeader>
-                <TeamSwitcher teams={data.teams} />
-            </SidebarHeader> */}
             <SidebarContent>
-                <NavMain items={data.navMain} />
+                <NavMain items={sidebarData.navMain} />
             </SidebarContent>
             <SidebarFooter>
-                <NavUser user={data.user} />
+                <NavUser user={sidebarData.user} />
             </SidebarFooter>
             <SidebarRail />
         </Sidebar>

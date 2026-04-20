@@ -12,7 +12,7 @@ export const metadata: Metadata = {
     description: "Dashboard analítico para visualização de dados de empresas do Brasil.",
 };
 
-import { StoreInitializer } from "@/components/store-initializer";
+import { StoreInitializer } from "@/components/shared/store-initializer";
 
 export default function RootLayout({
     children,

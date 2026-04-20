@@ -7,7 +7,7 @@ import {
     SheetHeader,
     SheetTitle,
 } from "@/components/ui/sheet"
-import { CompaniesTable } from "@/components/companies-table"
+import { CompaniesTable } from "@/features/leads/components/companies-table"
 import { useFilterStore } from "@/store/use-filter-store"
 import { useEffect, useState } from "react"
 

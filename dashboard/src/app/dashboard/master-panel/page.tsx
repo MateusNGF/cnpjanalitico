@@ -1,20 +1,19 @@
 "use client";
 
 import { Suspense } from "react";
-import { PageHeader } from "@/components/common/PageHeader";
-import { PageContent } from "@/components/common/PageContent";
+import { PageHeader } from "@/components/shared/PageHeader";
+import { PageContent } from "@/components/shared/PageContent";
 import { Building2, Map as MapIcon, Layers, TrendingUp, Users, ShieldAlert } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import dynamic from "next/dynamic";
 import { formatNumber, formatCNAE } from "@/lib/utils";
-import { NaturezaSelector } from "@/components/natureza-selector";
-import { CapitalSocialSelector } from "@/components/capital-social-selector";
-import { Badge } from "@/components/ui/badge";
-import { Filter } from "lucide-react";
+import { LocalFilterBar } from "@/components/shared/LocalFilterBar";
+import { NaturezaSelector } from "@/components/shared/natureza-selector";
+import { CapitalSocialSelector } from "@/components/shared/capital-social-selector";
 
 // dynamic map import
-const MasterMap = dynamic(() => import("@/components/map-container").then(m => m.MapContainer), {
+const MasterMap = dynamic(() => import("@/features/analytics/components/map-container").then(m => m.MapContainer), {
     ssr: false,
     loading: () => <Skeleton className="w-full h-[500px] rounded-xl animate-pulse bg-muted/20" />,
 });
@@ -29,19 +28,10 @@ export default function MasterPanelPage() {
                 breadcrumbs={[{ label: "Dashboard", href: "/dashboard" }, { label: "Painel Mestre" }]}
             />
 
-            {/* Local Filter Bar */}
-            <div className="flex items-center gap-4 mb-6 p-4 rounded-xl border border-primary/5 bg-background/50 backdrop-blur-md shadow-sm">
-                <div className="flex items-center gap-2 text-muted-foreground mr-2">
-                    <Filter className="h-4 w-4" />
-                    <span className="text-xs font-semibold uppercase tracking-wider">Refinar Painel:</span>
-                </div>
+            <LocalFilterBar title="Refinar Painel">
                 <NaturezaSelector />
                 <CapitalSocialSelector />
-                <div className="flex-1" />
-                <Badge variant="outline" className="text-[10px] bg-primary/5 text-primary border-primary/20">
-                    Sincronizado com Global
-                </Badge>
-            </div>
+            </LocalFilterBar>
 
             {/* KPI Section */}
             <div className="grid gap-[var(--section-gap)] grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 mb-[var(--section-gap)]">

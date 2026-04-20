@@ -1,10 +1,10 @@
 "use client"
 
-import { MapContainer } from "@/components/map-container"
-import { LeadDrawer } from "@/components/lead-drawer"
-import { InsightsSidebar } from "@/components/insights-sidebar"
-import { PageHeader } from "@/components/common/PageHeader"
-import { PageContent } from "@/components/common/PageContent"
+import { MapContainer } from "@/features/analytics/components/map-container"
+import { LeadDrawer } from "@/features/leads/components/lead-drawer"
+import { InsightsSidebar } from "@/features/analytics/components/insights-sidebar"
+import { PageHeader } from "@/components/shared/PageHeader"
+import { PageContent } from "@/components/shared/PageContent"
 import { Map } from "lucide-react"
 
 export default function GeoPage() {
