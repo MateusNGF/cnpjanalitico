@@ -4,14 +4,13 @@ import {
     SidebarInset,
     SidebarProvider,
 } from "@/components/ui/sidebar"
-import { DashboardProvider } from "@/components/shared/dashboard-context"
 import { DashboardHeader } from "@/components/layout/dashboard-header"
 
 import { GlobalLoading } from "@/components/layout/global-loading"
 
 export default function Layout({ children }: { children: React.ReactNode }) {
     return (
-        <DashboardProvider>
+        <>
             <GlobalLoading />
             <SidebarProvider>
                 <AppSidebar />
@@ -24,7 +23,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                     </main>
                 </SidebarInset>
             </SidebarProvider>
-        </DashboardProvider>
+        </>
     )
 }
 

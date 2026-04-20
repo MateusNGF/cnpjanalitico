@@ -12,6 +12,7 @@ const querySchema = z.object({
     idade_min: z.coerce.number().default(0),
     idade_max: z.coerce.number().default(150),
     natureza_juridica: z.string().default(""),
+    situacao: z.string().default("02"),
 })
 
 export async function GET(req: NextRequest) {
@@ -30,6 +31,7 @@ export async function GET(req: NextRequest) {
             idade_min: params.idade_min,
             idade_max: params.idade_max,
             natureza_juridica: params.natureza_juridica,
+            situacao: params.situacao,
         })
 
         return NextResponse.json(result, {

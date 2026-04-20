@@ -3,6 +3,7 @@
 import { MapContainer } from "@/features/analytics/components/map-container"
 import { LeadDrawer } from "@/features/leads/components/lead-drawer"
 import { InsightsSidebar } from "@/features/analytics/components/insights-sidebar"
+import { NeighborhoodRanking } from "@/features/analytics/components/neighborhood-ranking"
 import { PageHeader } from "@/components/shared/PageHeader"
 import { PageContent } from "@/components/shared/PageContent"
 import { Map } from "lucide-react"
@@ -29,12 +30,21 @@ export default function GeoPage() {
 
                     {/* Right: Context Sidebar (Specific to Geo) */}
                     {/* We reuse InsightsSidebar for now, but conceptually this could be "Region Details" */}
-                    <div className="w-[300px] flex-none hidden md:block overflow-y-auto pr-1 bg-white rounded-lg border p-4 shadow-sm">
-                        <h3 className="font-semibold mb-4">Contexto Regional</h3>
-                        <p className="text-sm text-muted-foreground mb-4">
-                            Selecione um município no mapa para ver estatísticas detalhadas e oportunidades de negócio.
-                        </p>
-                        <InsightsSidebar />
+                    <div className="w-[300px] flex-none hidden md:flex flex-col gap-4 overflow-y-auto pr-1 bg-white rounded-lg border p-4 shadow-sm">
+                        <div className="flex-none">
+                            <h3 className="font-semibold mb-2">Contexto Regional</h3>
+                            <p className="text-sm text-muted-foreground mb-4">
+                                Selecione um município no mapa para ver estatísticas detalhadas e oportunidades de negócio.
+                            </p>
+                        </div>
+                        
+                        <div className="flex-1 min-h-[300px]">
+                             <NeighborhoodRanking />
+                        </div>
+
+                        <div className="flex-none pt-4 border-t">
+                            <InsightsSidebar />
+                        </div>
                     </div>
                 </div>
 

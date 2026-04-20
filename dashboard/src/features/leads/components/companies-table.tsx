@@ -13,7 +13,7 @@ import {
     getSortedRowModel,
     useReactTable,
 } from "@tanstack/react-table"
-import { ArrowUpDown, ChevronDown, MoreHorizontal, Mail, Phone, MessageCircle } from "lucide-react"
+import { ArrowUpDown, ChevronDown, MoreHorizontal, Mail, Phone, MessageCircle, Download } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -242,6 +242,38 @@ export function CompaniesTable() {
 
     const tableData = React.useMemo(() => leads || [], [leads])
 
+    const exportToCSV = () => {
+        if (!tableData || tableData.length === 0) return
+
+        const headers = ["CNPJ", "Razao Social", "Nome Fantasia", "CNAE", "Bairro", "Municipio", "Situacao", "Porte", "Capital Social"]
+        const rows = tableData.map(c => [
+            c.cnpj_full,
+            c.razao_social,
+            c.nome_fantasia || "",
+            c.cnae_descricao,
+            c.bairro,
+            c.municipio,
+            c.situacao_cadastral === '02' ? 'Ativa' : 'Outra',
+            c.porte,
+            c.capital_social
+        ])
+
+        const csvContent = [
+            headers.join(","),
+            ...rows.map(e => e.map(val => `"${val}"`).join(","))
+        ].join("\n")
+
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+        const url = URL.createObjectURL(blob)
+        const link = document.createElement("a")
+        link.setAttribute("href", url)
+        link.setAttribute("download", `leads_export_${new Date().toISOString().split('T')[0]}.csv`)
+        link.style.visibility = 'hidden'
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+    }
+
     const table = useReactTable({
         data: tableData,
         columns,
@@ -263,7 +295,7 @@ export function CompaniesTable() {
 
     return (
         <div className="w-full">
-            <div className="flex items-center py-4">
+            <div className="flex items-center py-4 gap-2">
                 <Input
                     placeholder="Buscar por Razão Social..."
                     value={(table.getColumn("razao_social")?.getFilterValue() as string) ?? ""}
@@ -272,32 +304,44 @@ export function CompaniesTable() {
                     }
                     className="max-w-sm"
                 />
-                <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                        <Button variant="outline" className="ml-auto">
-                            Colunas <ChevronDown />
-                        </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                        {table
-                            .getAllColumns()
-                            .filter((column) => column.getCanHide())
-                            .map((column) => {
-                                return (
-                                    <DropdownMenuCheckboxItem
-                                        key={column.id}
-                                        className="capitalize"
-                                        checked={column.getIsVisible()}
-                                        onCheckedChange={(value) =>
-                                            column.toggleVisibility(!!value)
-                                        }
-                                    >
-                                        {column.id}
-                                    </DropdownMenuCheckboxItem>
-                                )
-                            })}
-                    </DropdownMenuContent>
-                </DropdownMenu>
+                <div className="flex items-center gap-2 ml-auto">
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-8 border-dashed"
+                        onClick={exportToCSV}
+                        disabled={loading || tableData.length === 0}
+                    >
+                        <Download className="mr-2 h-4 w-4" />
+                        Exportar CSV
+                    </Button>
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button variant="outline" size="sm" className="h-8">
+                                Colunas <ChevronDown className="ml-2 h-4 w-4" />
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                            {table
+                                .getAllColumns()
+                                .filter((column) => column.getCanHide())
+                                .map((column) => {
+                                    return (
+                                        <DropdownMenuCheckboxItem
+                                            key={column.id}
+                                            className="capitalize"
+                                            checked={column.getIsVisible()}
+                                            onCheckedChange={(value) =>
+                                                column.toggleVisibility(!!value)
+                                            }
+                                        >
+                                            {column.id}
+                                        </DropdownMenuCheckboxItem>
+                                    )
+                                })}
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                </div>
             </div>
             <div className="rounded-md border">
                 <Table>
